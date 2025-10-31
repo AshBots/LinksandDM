@@ -1,8 +1,8 @@
 import React from 'react';
-import LinksAndDM from './LinksAndDM';
+import LinksandDM from './LinksandDM';
 
 function App() {
-  return <LinksAndDM />;
+  return <LinksandDM />;
 }
 
 export default App;
