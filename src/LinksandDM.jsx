@@ -1,36 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, get, onValue } from 'firebase/database';
 
-const LinksAndDM = () => {
-  // Firebase Configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyAAFqbEIL3TOAcFmsxoqltJfrtfE2sOXVs",
-    authDomain: "links-dm-pro.firebaseapp.com",
-    projectId: "links-dm-pro",
-    storageBucket: "links-dm-pro.firebasestorage.app",
-    messagingSenderId: "965082307073",
-    appId: "1:965082307073:web:78ea49e4c5888852307e00",
-    databaseURL: "https://links-dm-pro-default-rtdb.firebaseio.com"
-  };
-
-  let database = null;
-  try {
-    const app = initializeApp(firebaseConfig);
-    database = getDatabase(app);
-  } catch (e) {
-    console.log('Firebase already initialized');
-  }
-
-  // State Management
+const LinksandDM = () => {
   const [currentView, setCurrentView] = useState('landing');
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [currentMessageType, setCurrentMessageType] = useState(null);
   const [inboxFilter, setInboxFilter] = useState('all');
   const [showModal, setShowModal] = useState(null);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
 
   const [profile, setProfile] = useState({
     name: 'Your Name Here',
@@ -42,7 +18,7 @@ const LinksAndDM = () => {
 
   const [dmButtons, setDmButtons] = useState({
     bookMeeting: { enabled: true, label: 'Book a Meeting', calendarLink: '', icon: '📅', emojiTag: '📅' },
-    letsConnect: { enabled: true, label: "Let's Connect", icon: '💬', emojiTag: '💬' },
+    letsConnect: { enabled: true, label: 'Let\'s Connect', icon: '💬', emojiTag: '💬' },
     collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝', emojiTag: '🤝' },
     supportCause: { enabled: true, label: 'Support a Cause', icon: '❤️', emojiTag: '❤️' },
   });
@@ -58,6 +34,7 @@ const LinksAndDM = () => {
 
   const [portfolio, setPortfolio] = useState({ enabled: true, url: '' });
   const [projects, setProjects] = useState({ enabled: true, list: [{ title: '', url: '' }] });
+  
   const [priorityContacts, setPriorityContacts] = useState([{ handle: '@yourfriend' }]);
 
   const [messages, setMessages] = useState([]);
@@ -108,38 +85,17 @@ const LinksAndDM = () => {
     projects: '#FF8C00',
   };
 
-  // Firebase: Load messages on mount
   useEffect(() => {
-    if (!database) return;
-    
-    const dbRef = ref(database, 'messages');
-    const unsubscribe = onValue(dbRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const messagesArray = Array.isArray(data) ? data : Object.values(data);
-        setMessages(messagesArray);
-      }
-      setIsLoadingMessages(false);
-    }, (error) => {
-      console.log('Error loading messages:', error);
-      setIsLoadingMessages(false);
-    });
-
-    return () => unsubscribe();
+    const savedMessages = localStorage.getItem('linksAndDmMessages');
+    if (savedMessages) {
+      setMessages(JSON.parse(savedMessages));
+    }
   }, []);
 
-  // Firebase: Save messages
   useEffect(() => {
-    if (!database || isLoadingMessages || messages.length === 0) return;
-    
-    try {
-      set(ref(database, 'messages'), messages);
-    } catch (error) {
-      console.log('Error saving messages:', error);
-    }
-  }, [messages, isLoadingMessages]);
+    localStorage.setItem('linksAndDmMessages', JSON.stringify(messages));
+  }, [messages]);
 
-  // Check if sender is priority
   const isPriority = (contactInfo) => {
     return priorityContacts.some(pc => 
       pc.handle.toLowerCase().includes(contactInfo.toLowerCase()) || 
@@ -147,12 +103,10 @@ const LinksAndDM = () => {
     );
   };
 
-  // Get sender tag
   const getSenderTag = (contactInfo) => {
     return isPriority(contactInfo) ? '⭐' : '🌸';
   };
 
-  // Handle message submission
   const handleMessageSubmit = (e) => {
     e.preventDefault();
     
@@ -179,14 +133,12 @@ const LinksAndDM = () => {
     setTimeout(() => setShowConfirmation(false), 3000);
   };
 
-  // Toggle star
   const toggleStar = (index) => {
     const updatedMessages = [...messages];
     updatedMessages[index].starred = !updatedMessages[index].starred;
     setMessages(updatedMessages);
   };
 
-  // Filter messages
   const filteredMessages = messages.filter(msg => {
     if (inboxFilter === 'all') return true;
     if (inboxFilter === 'priority') return msg.starred || msg.senderTag === '⭐';
@@ -197,19 +149,16 @@ const LinksAndDM = () => {
     return true;
   });
 
-  // Sort messages
   const sortedMessages = [...filteredMessages].sort((a, b) => {
     if (a.starred && !b.starred) return -1;
     if (!a.starred && b.starred) return 1;
     return new Date(b.timestamp) - new Date(a.timestamp);
   });
 
-  // Handle profile change
   const handleProfileChange = (field, value) => {
     setProfile(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle profile pic upload
   const handleProfilePicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -221,7 +170,6 @@ const LinksAndDM = () => {
     }
   };
 
-  // Handle category add
   const handleCategoryAdd = (category) => {
     setCategory(prev => {
       const newList = [...prev[category]];
@@ -233,7 +181,6 @@ const LinksAndDM = () => {
     });
   };
 
-  // Handle category change
   const handleCategoryChange = (category, index, field, value) => {
     setCategory(prev => {
       const newList = [...prev[category]];
@@ -242,7 +189,6 @@ const LinksAndDM = () => {
     });
   };
 
-  // Handle category remove
   const handleCategoryRemove = (category, index) => {
     setCategory(prev => ({
       ...prev,
@@ -250,13 +196,11 @@ const LinksAndDM = () => {
     }));
   };
 
-  // Open message form
   const openMessageForm = (buttonKey) => {
     setCurrentMessageType(dmButtons[buttonKey]);
     setShowMessageForm(true);
   };
 
-  // Format URL
   const formatUrl = (url) => {
     if (!url) return '';
     if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -268,7 +212,6 @@ const LinksAndDM = () => {
     return `https://${url}`;
   };
 
-  // Get social media URL
   const getSocialMediaUrl = (platform, handle) => {
     if (!handle) return '';
     
@@ -295,7 +238,6 @@ const LinksAndDM = () => {
     return platformUrls[platform] || `https://${cleanHandle}`;
   };
 
-  // ============ LANDING PAGE ============
   if (currentView === 'landing') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -376,7 +318,6 @@ const LinksAndDM = () => {
     );
   }
 
-  // ============ PREVIEW PAGE ============
   if (currentView === 'preview') {
     const theme = themes[profile.selectedTheme];
     const bgStyle = { background: theme.gradient };
@@ -611,7 +552,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {categoryButtons.handles.map((item, idx) => (
-                  <a
+                  
                     key={idx}
                     href={getSocialMediaUrl(item.platform, item.handle)}
                     target="_blank"
@@ -636,7 +577,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {categoryButtons.email.map((item, idx) => (
-                  <a
+                  
                     key={idx}
                     href={`mailto:${item.email}`}
                     className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition"
@@ -658,7 +599,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {categoryButtons.contact.map((item, idx) => (
-                  <a
+                  
                     key={idx}
                     href={`tel:${item.phone}`}
                     className="block bg-gray-100 rounded-xl p-4 hover:bg-green-100 transition"
@@ -680,7 +621,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {categoryButtons.website.map((item, idx) => (
-                  <a
+                  
                     key={idx}
                     href={formatUrl(item.url)}
                     target="_blank"
@@ -704,7 +645,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {projects.list.map((proj, idx) => (
-                  <a
+                  
                     key={idx}
                     href={formatUrl(proj.url)}
                     target="_blank"
@@ -730,7 +671,7 @@ const LinksAndDM = () => {
               </div>
               <div className="space-y-3">
                 {charityLinks.filter(c => c.url).map((charity, idx) => (
-                  <a
+                  
                     key={idx}
                     href={formatUrl(charity.url)}
                     target="_blank"
@@ -749,7 +690,6 @@ const LinksAndDM = () => {
     );
   }
 
-  // ============ INBOX PAGE ============
   if (currentView === 'inbox') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
@@ -833,7 +773,6 @@ const LinksAndDM = () => {
     );
   }
 
-  // ============ EDITOR PAGE ============
   if (currentView === 'editor') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
@@ -1339,4 +1278,4 @@ const LinksAndDM = () => {
   return null;
 };
 
-export default LinksAndDM;
+export default LinksandDM;
