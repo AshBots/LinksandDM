@@ -11,9 +11,9 @@ const LinksAndDM = () => {
   const [showModal, setShowModal] = useState(null);
   const [profileId, setProfileId] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [inboxPin, setInboxPin] = useState('');
+  const [masterPin, setMasterPin] = useState('');
   const [pinInput, setPinInput] = useState('');
-  const [pinVerified, setPinVerified] = useState(false);
+  const [isPinVerified, setIsPinVerified] = useState(false);
 
   const [profile, setProfile] = useState({
     name: 'Your Name Here',
@@ -233,14 +233,58 @@ const LinksAndDM = () => {
     return platformUrls[platform] || `https://${cleanHandle}`;
   };
 
+  const handleLandingClick = () => {
+    if (masterPin === '') {
+      alert('Please set a PIN first on the preview page');
+      setCurrentView('preview');
+      return;
+    }
+    setCurrentView('landing');
+    setIsPinVerified(false);
+    setPinInput('');
+  };
+
+  const handleEditorClick = () => {
+    if (masterPin === '') {
+      alert('Please set a PIN first on the preview page');
+      setCurrentView('preview');
+      return;
+    }
+    setCurrentView('editor');
+    setIsPinVerified(false);
+    setPinInput('');
+  };
+
+  const verifyPin = () => {
+    if (pinInput === masterPin && masterPin !== '') {
+      setIsPinVerified(true);
+    } else {
+      alert('Wrong PIN');
+      setPinInput('');
+    }
+  };
+
+  const PinLockScreen = ({ onUnlock, targetView }) => (
+    <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+        <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Access Required</h2>
+        <p className="text-gray-600 mb-6">Enter PIN to continue</p>
+        <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') verifyPin(); }} placeholder="Enter PIN" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4" />
+        <button onClick={verifyPin} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3">Unlock</button>
+        <button onClick={() => setCurrentView('preview')} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400">Back to Preview</button>
+      </div>
+    </div>
+  );
+
   if (currentView === 'landing') {
+    if (!isPinVerified) return <PinLockScreen />;
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; } .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }`}</style>
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-12">
             <h1 className="heading-lg text-5xl text-white drop-shadow-2xl" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.2)' }}>🔗 Links & DM 💬</h1>
-            <button onClick={() => setCurrentView('editor')} className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">Let's Do It!</button>
+            <button onClick={handleEditorClick} className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">Let's Do It!</button>
           </div>
           <div className="text-center mb-20">
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>One Link.</h1>
@@ -259,7 +303,7 @@ const LinksAndDM = () => {
           </div>
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl border-4 border-white p-10 max-w-2xl mx-auto text-center drop-shadow-2xl">
             <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Transform Your Link-in-Bio Today 🚀</h3>
-            <button onClick={() => setCurrentView('editor')} className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200">Get Started Now</button>
+            <button onClick={handleEditorClick} className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200">Get Started Now</button>
             <button onClick={() => setCurrentView('preview')} className="bg-white/30 border-4 border-white text-white px-12 py-5 rounded-3xl font-bold text-2xl hover:bg-white/50 transition transform hover:scale-110 w-full drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>See Demo ✨</button>
           </div>
           <div className="text-center mt-16 text-white drop-shadow-lg">
@@ -301,15 +345,16 @@ const LinksAndDM = () => {
             {portfolio.enabled && <button onClick={() => { if (portfolio.url) window.open(formatUrl(portfolio.url), '_blank'); }} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.portfolio, color: textColors.portfolio }}><span className="text-4xl drop-shadow-lg">🎨</span><span className="text-xs leading-tight">Portfolio</span></button>}
             {projects.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.projects, color: textColors.projects }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
           </div>
-          <div className="text-center mt-10 mb-5 bg-white/30 rounded-2xl p-4 backdrop-blur">
-            <p className="text-white font-bold mb-2">🔐 Set Inbox PIN:</p>
-            <input type="password" value={inboxPin} onChange={(e) => setInboxPin(e.target.value)} placeholder="Set 4-digit PIN" maxLength="10" className="w-full border-2 border-white rounded-xl p-2 font-bold text-center mb-2 text-black" />
-            {inboxPin && <p className="text-white text-sm">PIN set to: {inboxPin}</p>}
-          </div>
-          <div className="text-center text-white/90">
-            <p className="text-lg font-bold drop-shadow-lg mb-5">Ready to connect! 🚀</p>
-            <button onClick={() => setCurrentView('landing')} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">← Back</button>
-            <button onClick={() => { if (!inboxPin) { alert('Please set a PIN first'); return; } setPinInput(''); setPinVerified(false); setCurrentView('inbox'); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg">📬 Inbox ({messages.length})</button>
+          <div className="text-center mt-10">
+            <div className="mb-5 bg-white/30 rounded-2xl p-4 backdrop-blur">
+              <p className="text-white font-bold mb-2">🔐 Set Master PIN:</p>
+              <input type="password" value={masterPin} onChange={(e) => setMasterPin(e.target.value)} placeholder="Set PIN for access" maxLength="10" className="w-full border-2 border-white rounded-xl p-2 font-bold text-center mb-2" />
+              {masterPin && <p className="text-white text-sm">PIN set: {masterPin}</p>}
+            </div>
+            <p className="text-lg font-bold drop-shadow-lg mb-5 text-white/90">Ready to connect! 🚀</p>
+            <button onClick={handleLandingClick} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">← Back</button>
+            <button onClick={handleEditorClick} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">✏️ Editor</button>
+            <button onClick={() => { if (masterPin === '') { alert('Please set a PIN first'); return; } setCurrentView('inbox'); setIsPinVerified(false); setPinInput(''); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg">📬 Inbox ({messages.length})</button>
           </div>
         </div>
 
@@ -457,26 +502,13 @@ const LinksAndDM = () => {
   }
 
   if (currentView === 'inbox') {
-    if (!pinVerified) {
-      return (
-        <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
-          <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
-            <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Protected Inbox</h2>
-            <p className="text-gray-600 mb-6 font-bold">Enter PIN to view messages</p>
-            <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="Enter PIN" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4 text-black" />
-            <button onClick={() => { if (pinInput === inboxPin && inboxPin !== '') { setPinVerified(true); } else { alert('Wrong PIN'); setPinInput(''); } }} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3 transition">Unlock</button>
-            <button onClick={() => { setPinVerified(false); setPinInput(''); setCurrentView('preview'); }} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400 transition">Back</button>
-          </div>
-        </div>
-      );
-    }
-
+    if (!isPinVerified) return <PinLockScreen />;
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }`}</style>
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
-            <button onClick={() => { setPinVerified(false); setPinInput(''); setCurrentView('preview'); }} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">← Back</button>
+            <button onClick={() => { setCurrentView('preview'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">← Back</button>
             <h1 className="text-4xl text-white drop-shadow-lg font-bold">📬 Messages</h1>
           </div>
           <div className="bg-white rounded-3xl p-6 mb-6 shadow-xl">
@@ -492,7 +524,7 @@ const LinksAndDM = () => {
             {loadingMessages ? (
               <div className="bg-white rounded-3xl p-10 text-center"><p className="text-2xl font-bold text-gray-600">Loading messages...</p></div>
             ) : sortedMessages.length === 0 ? (
-              <div className="bg-white rounded-3xl p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-2xl font-bold text-gray-600">No messages yet</p><p className="text-sm text-gray-500 mt-2">Messages will appear here when you share your profile!</p></div>
+              <div className="bg-white rounded-3xl p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-2xl font-bold text-gray-600">No messages yet</p><p className="text-sm text-gray-500 mt-2">Messages will appear here when shared!</p></div>
             ) : (
               sortedMessages.map((msg, idx) => (
                 <div key={msg.id || idx} className="bg-white rounded-2xl p-4 shadow-lg border-4 border-purple-200 hover:shadow-xl transition">
@@ -522,6 +554,7 @@ const LinksAndDM = () => {
   }
 
   if (currentView === 'editor') {
+    if (!isPinVerified) return <PinLockScreen />;
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }`}</style>
@@ -530,8 +563,8 @@ const LinksAndDM = () => {
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>One Link.</h1>
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>Sorted DMs</h1>
             <div className="flex justify-center gap-4">
-              <button onClick={() => setCurrentView('preview')} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
-              <button onClick={() => setCurrentView('inbox')} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
+              <button onClick={() => { setCurrentView('preview'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
+              <button onClick={() => { setCurrentView('inbox'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
             </div>
           </div>
 
@@ -572,8 +605,8 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {charityLinks.map((charity, idx) => (
                 <div key={idx} className="flex gap-2 w-full">
-                  <input type="text" value={charity.name} onChange={(e) => { const newList = [...charityLinks]; newList[idx].name = e.target.value; setCharityLinks(newList); }} placeholder="Cause name (e.g., Clean Water)" className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0 text-black" />
-                  <input type="url" value={charity.url} onChange={(e) => { const newList = [...charityLinks]; newList[idx].url = e.target.value; setCharityLinks(newList); }} placeholder="https://charity.org" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate text-black" />
+                  <input type="text" value={charity.name} onChange={(e) => { const newList = [...charityLinks]; newList[idx].name = e.target.value; setCharityLinks(newList); }} placeholder="Cause name (e.g., Clean Water)" className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0" />
+                  <input type="url" value={charity.url} onChange={(e) => { const newList = [...charityLinks]; newList[idx].url = e.target.value; setCharityLinks(newList); }} placeholder="https://charity.org" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate" />
                   {charityLinks.length > 1 && (<button onClick={() => setCharityLinks(charityLinks.filter((_, i) => i !== idx))} className="bg-red-700 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-800">✕</button>)}
                 </div>
               ))}
@@ -586,8 +619,8 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {categoryButtons.handles.map((h, idx) => (
                 <div key={idx} className="flex gap-2 w-full">
-                  <input type="text" value={h.platform} onChange={(e) => handleCategoryChange('handles', idx, 'platform', e.target.value)} placeholder="Instagram" className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0 text-black" />
-                  <input type="text" value={h.handle} onChange={(e) => handleCategoryChange('handles', idx, 'handle', e.target.value)} placeholder="@yourhandle" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate text-black" />
+                  <input type="text" value={h.platform} onChange={(e) => handleCategoryChange('handles', idx, 'platform', e.target.value)} placeholder="Instagram" className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0" />
+                  <input type="text" value={h.handle} onChange={(e) => handleCategoryChange('handles', idx, 'handle', e.target.value)} placeholder="@yourhandle" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate" />
                   {categoryButtons.handles.length > 1 && (<button onClick={() => handleCategoryRemove('handles', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}
                 </div>
               ))}
@@ -600,7 +633,7 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {categoryButtons.email.map((e, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="email" value={e.email} onChange={(ev) => handleCategoryChange('email', idx, 'email', ev.target.value)} placeholder="your@email.com" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" />
+                  <input type="email" value={e.email} onChange={(ev) => handleCategoryChange('email', idx, 'email', ev.target.value)} placeholder="your@email.com" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" />
                   {categoryButtons.email.length > 1 && (<button onClick={() => handleCategoryRemove('email', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}
                 </div>
               ))}
@@ -613,7 +646,7 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {categoryButtons.contact.map((c, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="tel" value={c.phone} onChange={(e) => handleCategoryChange('contact', idx, 'phone', e.target.value)} placeholder="+1 (555) 123-4567" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" />
+                  <input type="tel" value={c.phone} onChange={(e) => handleCategoryChange('contact', idx, 'phone', e.target.value)} placeholder="+1 (555) 123-4567" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" />
                   {categoryButtons.contact.length > 1 && (<button onClick={() => handleCategoryRemove('contact', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}
                 </div>
               ))}
@@ -626,7 +659,7 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {categoryButtons.website.map((w, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="url" value={w.url} onChange={(e) => handleCategoryChange('website', idx, 'url', e.target.value)} placeholder="https://yourwebsite.com" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" />
+                  <input type="url" value={w.url} onChange={(e) => handleCategoryChange('website', idx, 'url', e.target.value)} placeholder="https://yourwebsite.com" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" />
                   {categoryButtons.website.length > 1 && (<button onClick={() => handleCategoryRemove('website', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}
                 </div>
               ))}
@@ -640,7 +673,7 @@ const LinksAndDM = () => {
               <input type="checkbox" checked={portfolio.enabled} onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
               <label className="font-bold text-lg flex-1">Enable Portfolio</label>
             </div>
-            {portfolio.enabled && (<input type="url" value={portfolio.url} onChange={(e) => setPortfolio(prev => ({ ...prev, url: e.target.value }))} placeholder="https://yourportfolio.com" className="w-full bg-white/95 border-0 rounded-xl p-3 font-bold text-sm text-black" />)}
+            {portfolio.enabled && (<input type="url" value={portfolio.url} onChange={(e) => setPortfolio(prev => ({ ...prev, url: e.target.value }))} placeholder="https://yourportfolio.com" className="w-full bg-white/95 border-0 rounded-xl p-3 font-bold text-sm" />)}
           </div>
 
           <div className="bg-gradient-to-br from-orange-500 to-yellow-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
@@ -649,7 +682,7 @@ const LinksAndDM = () => {
               <input type="checkbox" checked={projects.enabled} onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
               <label className="font-bold text-lg flex-1">Enable Projects</label>
             </div>
-            {projects.enabled && (<><div className="space-y-2 mb-4">{projects.list.map((proj, idx) => (<div key={idx} className="flex gap-2 w-full"><input type="text" value={proj.title} onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="Title" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" /><input type="url" value={proj.url} onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="https://..." className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" />{projects.list.length > 1 && (<button onClick={() => { const newList = projects.list.filter((_, i) => i !== idx); setProjects(prev => ({ ...prev, list: newList })); }} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}</div>))}</div>{projects.list.length < 5 && (<button onClick={() => { setProjects(prev => ({ ...prev, list: [...prev.list, { title: '', url: '' }] })); }} className="w-full bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg">+ Add Project</button>)}</>)}
+            {projects.enabled && (<><div className="space-y-2 mb-4">{projects.list.map((proj, idx) => (<div key={idx} className="flex gap-2 w-full"><input type="text" value={proj.title} onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="Title" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" /><input type="url" value={proj.url} onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="https://..." className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" />{projects.list.length > 1 && (<button onClick={() => { const newList = projects.list.filter((_, i) => i !== idx); setProjects(prev => ({ ...prev, list: newList })); }} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}</div>))}</div>{projects.list.length < 5 && (<button onClick={() => { setProjects(prev => ({ ...prev, list: [...prev.list, { title: '', url: '' }] })); }} className="w-full bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg">+ Add Project</button>)}</>)}
           </div>
 
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 mb-6 max-w-3xl mx-auto shadow-xl">
@@ -669,7 +702,7 @@ const LinksAndDM = () => {
             <div className="space-y-2 mb-4">
               {priorityContacts.map((contact, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="text" value={contact.handle} onChange={(e) => { const newList = [...priorityContacts]; newList[idx].handle = e.target.value; setPriorityContacts(newList); }} placeholder="@handle or email" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 text-black" />
+                  <input type="text" value={contact.handle} onChange={(e) => { const newList = [...priorityContacts]; newList[idx].handle = e.target.value; setPriorityContacts(newList); }} placeholder="@handle or email" className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0" />
                   {priorityContacts.length > 1 && (<button onClick={() => setPriorityContacts(priorityContacts.filter((_, i) => i !== idx))} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600">✕</button>)}
                 </div>
               ))}
