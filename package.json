@@ -2,12 +2,11 @@
   "name": "links-dm-pro",
   "version": "1.0.0",
   "private": true,
-  "description": "Links & DM – The Ultimate Link-in-Bio app for creators, powered by React + Firebase.",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "firebase": "9.22.2" 
+    "firebase": "9.22.2"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -19,20 +18,14 @@
     "extends": ["react-app"]
   },
   "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
+    "production": [">0.2%", "not dead", "not op_mini all"],
     "development": [
       "last 1 chrome version",
       "last 1 firefox version",
       "last 1 safari version"
     ]
   },
-  "author": "AshBots",
-  "license": "MIT",
   "engines": {
-    "node": ">=16"
+    "node": "18.x"
   }
 }
