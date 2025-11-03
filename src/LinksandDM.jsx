@@ -13,6 +13,8 @@ const LinksAndDM = () => {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // App States
   const [showMessageForm, setShowMessageForm] = useState(false);
@@ -175,13 +177,14 @@ const LinksAndDM = () => {
     setAuthError('');
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+      const defaultUsername = `user_${userCredential.user.uid.slice(0, 8)}`;
       await setDoc(doc(db, 'profiles', userCredential.user.uid), {
         name: profile.name,
         businessProfession: profile.businessProfession,
         bio: profile.bio,
         profilePic: null,
         selectedTheme: 0,
-        username: `user_${userCredential.user.uid.slice(0, 8)}`,
+        username: defaultUsername,
         email: authEmail,
       });
       setShowAuthModal(false);
@@ -221,6 +224,19 @@ const LinksAndDM = () => {
   const handleLogout = async () => {
     await signOut(auth);
     setCurrentView('landing');
+  };
+
+  const getShareLink = () => {
+    if (!profile.username) return '';
+    return `${window.location.origin}/user/${profile.username}`;
+  };
+
+  const copyToClipboard = () => {
+    const link = getShareLink();
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
   };
 
   const saveProfileToFirebase = async () => {
@@ -411,6 +427,23 @@ const LinksAndDM = () => {
     </div>
   );
 
+  // Share Modal
+  const ShareModal = () => (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-blue-300">
+        <h2 className="text-3xl font-bold mb-4 text-blue-600">🔗 Share Link</h2>
+        <div className="bg-gray-100 rounded-xl p-4 mb-4 break-all">
+          <p className="text-sm font-bold text-gray-700 mb-2">Your Profile Link:</p>
+          <p className="text-lg font-bold text-blue-600">{getShareLink()}</p>
+        </div>
+        <button onClick={copyToClipboard} className={`w-full px-6 py-3 rounded-2xl font-bold text-lg transition ${copySuccess ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>
+          {copySuccess ? '✅ Copied!' : '📋 Copy Link'}
+        </button>
+        <button onClick={() => setShowShareModal(false)} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold mt-4 hover:bg-gray-400">Close</button>
+      </div>
+    </div>
+  );
+
   if (isAuthLoading) return <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 flex items-center justify-center"><p className="text-3xl font-bold">Loading...</p></div>;
 
   // LANDING PAGE - PUBLIC
@@ -457,11 +490,12 @@ const LinksAndDM = () => {
     if (!authUser) return <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center"><button onClick={() => { setAuthMode('login'); setShowAuthModal(true); }} className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-2xl">Sign In to Continue</button>{showAuthModal && <AuthModal />}</div>;
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
+      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-4xl font-bold text-white">✏️ Edit Your Profile</h1>
             <div className="flex gap-3">
+              <button onClick={() => setShowShareModal(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-blue-700">🔗 Share</button>
               <button onClick={() => setCurrentView('preview')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl">👁️ Preview</button>
               <button onClick={() => setCurrentView('inbox')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl">📬 Inbox</button>
               <button onClick={handleLogout} className="bg-red-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-700">Logout</button>
@@ -488,6 +522,7 @@ const LinksAndDM = () => {
             </div>
           </div>
         </div>
+        {showShareModal && <ShareModal />}
       </div>
     );
   }
