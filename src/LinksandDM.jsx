@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-import { db, auth } from './firebase';
+import { db } from './firebase';
 
-import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore';
 
 
 
-const LinksAndDM = ({ user }) => {
+const LinksAndDM = () => {
 
   const [currentView, setCurrentView] = useState('landing');
 
