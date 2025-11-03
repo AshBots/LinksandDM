@@ -13,10 +13,11 @@ const LinksAndDM = () => {
   const [profileId, setProfileId] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
-  const [shareLink, setShareLink] = useState('');
+  const [isPublicPreview, setIsPublicPreview] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [publicProfileData, setPublicProfileData] = useState(null);
-  const [isPublicView, setIsPublicView] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [showColorSettings, setShowColorSettings] = useState(false);
   
   // PIN states
   const [newPin, setNewPin] = useState('');
@@ -33,6 +34,20 @@ const LinksAndDM = () => {
     profilePic: null,
     selectedTheme: 0,
     username: '',
+  });
+
+  // Color Customization
+  const [buttonColors, setButtonColors] = useState({
+    bookMeeting: { bg: '#ADD8E6', text: '#0066cc' },
+    letsConnect: { bg: '#DDA0DD', text: '#8B008B' },
+    collabRequest: { bg: '#AFEEEE', text: '#008B8B' },
+    supportCause: { bg: '#FFB6D9', text: '#C71585' },
+    handles: { bg: '#FFB6C1', text: '#C71585' },
+    email: { bg: '#B0E0E6', text: '#1E90FF' },
+    contact: { bg: '#B4F8C8', text: '#228B22' },
+    website: { bg: '#DDA0DD', text: '#663399' },
+    portfolio: { bg: '#B0E0E6', text: '#1E90FF' },
+    projects: { bg: '#FFDAB9', text: '#FF8C00' },
   });
 
   const [dmButtons, setDmButtons] = useState({
@@ -71,19 +86,15 @@ const LinksAndDM = () => {
     { name: 'Orchid Dream', gradient: 'linear-gradient(135deg, #DA70D6 0%, #EE82EE 100%)' },
   ];
 
-  const pastelColors = { bookMeeting: '#ADD8E6', letsConnect: '#DDA0DD', collabRequest: '#AFEEEE', supportCause: '#FFB6D9', handles: '#FFB6C1', email: '#B0E0E6', contact: '#B4F8C8', website: '#DDA0DD', portfolio: '#B0E0E6', projects: '#FFDAB9' };
-  const textColors = { bookMeeting: '#0066cc', letsConnect: '#8B008B', collabRequest: '#008B8B', supportCause: '#C71585', handles: '#C71585', email: '#1E90FF', contact: '#228B22', website: '#663399', portfolio: '#1E90FF', projects: '#FF8C00' };
-
-  // Initialize app and check for public link
+  // Check if viewing public preview via URL
   useEffect(() => {
     const path = window.location.pathname;
-    
-    // Check if it's a public preview link
     if (path.includes('/user/')) {
-      const username = path.split('/user/')[1];
-      loadPublicProfile(username);
+      const username = path.split('/user/')[1].split('/')[0];
+      setIsPublicPreview(true);
+      loadProfileByUsername(username);
     } else {
-      // Normal app flow
+      setIsPublicPreview(false);
       const storedProfileId = localStorage.getItem('linksAndDmProfileId');
       if (storedProfileId) {
         setProfileId(storedProfileId);
@@ -96,58 +107,40 @@ const LinksAndDM = () => {
     }
   }, []);
 
-  // Load public profile by username
-  const loadPublicProfile = async (username) => {
+  const loadProfileByUsername = async (username) => {
     try {
       setLoadingProfile(true);
-      setIsPublicView(true);
-      
-      // Query Firestore for profile with matching username
       const profilesRef = collection(db, 'profiles');
       const q = query(profilesRef, where('username', '==', username));
       const querySnapshot = await getDocs(q);
 
-      if (querySnapshot.empty) {
-        alert('Profile not found');
-        window.location.href = '/';
-        return;
+      if (!querySnapshot.empty) {
+        const data = querySnapshot.docs[0].data();
+        setProfile(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          businessProfession: data.businessProfession || prev.businessProfession,
+          bio: data.bio || prev.bio,
+          profilePic: data.profilePic || prev.profilePic,
+          selectedTheme: data.selectedTheme || 0,
+          username: data.username || '',
+        }));
+        setDmButtons(data.dmButtons || dmButtons);
+        setCategory(data.categoryButtons || categoryButtons);
+        setCharityLinks(data.charityLinks || charityLinks);
+        setPortfolio(data.portfolio || portfolio);
+        setProjects(data.projects || projects);
+        setPriorityContacts(data.priorityContacts || priorityContacts);
+        setButtonColors(data.buttonColors || buttonColors);
+        setProfileId(querySnapshot.docs[0].id);
       }
-
-      const profileDoc = querySnapshot.docs[0];
-      const data = profileDoc.data();
-
-      setPublicProfileData({
-        id: profileDoc.id,
-        ...data
-      });
-
       setLoadingProfile(false);
     } catch (error) {
-      console.error('Error loading public profile:', error);
+      console.error('Error loading profile by username:', error);
       setLoadingProfile(false);
     }
   };
 
-  // Load messages for public profile
-  const loadPublicMessages = async (publicProfileId) => {
-    try {
-      setLoadingMessages(true);
-      const messagesRef = collection(db, 'profiles', publicProfileId, 'messages');
-      const q = query(messagesRef, orderBy('timestamp', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const loadedMessages = [];
-      querySnapshot.forEach((docSnapshot) => {
-        loadedMessages.push({ id: docSnapshot.id, ...docSnapshot.data() });
-      });
-      setMessages(loadedMessages);
-      setLoadingMessages(false);
-    } catch (error) {
-      console.error('Error loading messages:', error);
-      setLoadingMessages(false);
-    }
-  };
-
-  // Load profile from Firebase
   const loadProfileFromFirebase = async (id) => {
     try {
       setLoadingProfile(true);
@@ -171,6 +164,7 @@ const LinksAndDM = () => {
         setPortfolio(data.portfolio || portfolio);
         setProjects(data.projects || projects);
         setPriorityContacts(data.priorityContacts || priorityContacts);
+        setButtonColors(data.buttonColors || buttonColors);
         
         if (data.masterPin) {
           setMasterPin(data.masterPin);
@@ -183,7 +177,6 @@ const LinksAndDM = () => {
     }
   };
 
-  // Save profile to Firebase
   const saveProfileToFirebase = async () => {
     if (!profileId) return;
     try {
@@ -201,68 +194,58 @@ const LinksAndDM = () => {
         portfolio: portfolio,
         projects: projects,
         priorityContacts: priorityContacts,
+        buttonColors: buttonColors,
         masterPin: masterPin,
         updatedAt: new Date(),
       }, { merge: true });
-      console.log('Profile saved to Firebase');
     } catch (error) {
       console.error('Error saving profile:', error);
     }
   };
 
-  // Generate shareable link
   const generateShareLink = () => {
     if (!profile.username) {
-      alert('⚠️ Please set a username first in the editor');
+      alert('⚠️ Please set a username first!');
       return;
     }
-    
-    const domain = window.location.origin;
-    const link = `${domain}/user/${profile.username}`;
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/user/${profile.username}`;
     setShareLink(link);
     setShowShareModal(true);
   };
 
-  // Copy to clipboard
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareLink);
-    alert('✅ Link copied to clipboard!');
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
   };
 
-  // Load messages from Firestore
   useEffect(() => {
-    if (!profileId && !isPublicView) return;
-    
-    if (isPublicView && publicProfileData?.id) {
-      loadPublicMessages(publicProfileData.id);
-    } else if (profileId && !isPublicView) {
-      const loadMessagesFromFirestore = async () => {
-        try {
-          setLoadingMessages(true);
-          const messagesRef = collection(db, 'profiles', profileId, 'messages');
-          const q = query(messagesRef, orderBy('timestamp', 'desc'));
-          const querySnapshot = await getDocs(q);
-          const loadedMessages = [];
-          querySnapshot.forEach((docSnapshot) => {
-            loadedMessages.push({ id: docSnapshot.id, ...docSnapshot.data() });
-          });
-          setMessages(loadedMessages);
-          setLoadingMessages(false);
-        } catch (error) {
-          console.error('Error loading messages:', error);
-          setLoadingMessages(false);
-        }
-      };
-      loadMessagesFromFirestore();
-    }
-  }, [profileId, isPublicView, publicProfileData]);
+    if (!profileId) return;
+    const loadMessagesFromFirestore = async () => {
+      try {
+        setLoadingMessages(true);
+        const messagesRef = collection(db, 'profiles', profileId, 'messages');
+        const q = query(messagesRef, orderBy('timestamp', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const loadedMessages = [];
+        querySnapshot.forEach((docSnapshot) => {
+          loadedMessages.push({ id: docSnapshot.id, ...docSnapshot.data() });
+        });
+        setMessages(loadedMessages);
+        setLoadingMessages(false);
+      } catch (error) {
+        console.error('Error loading messages:', error);
+        setLoadingMessages(false);
+      }
+    };
+    loadMessagesFromFirestore();
+  }, [profileId]);
 
-  // Save message to Firestore
   const saveMessageToFirestore = async (newMessage) => {
-    const targetProfileId = isPublicView ? publicProfileData?.id : profileId;
-    if (!targetProfileId) return;
+    if (!profileId) return;
     try {
-      const messagesRef = collection(db, 'profiles', targetProfileId, 'messages');
+      const messagesRef = collection(db, 'profiles', profileId, 'messages');
       await addDoc(messagesRef, {
         name: newMessage.name,
         contact: newMessage.contact,
@@ -278,17 +261,36 @@ const LinksAndDM = () => {
   };
 
   const updateMessageStarInFirestore = async (messageId, starStatus) => {
-    const targetProfileId = isPublicView ? publicProfileData?.id : profileId;
-    if (!targetProfileId) return;
+    if (!profileId) return;
     try {
-      const messageRef = doc(db, 'profiles', targetProfileId, 'messages', messageId);
+      const messageRef = doc(db, 'profiles', profileId, 'messages', messageId);
       await updateDoc(messageRef, { starred: starStatus });
     } catch (error) {
       console.error('Error updating message:', error);
     }
   };
 
-  // PIN Management
+  // Smooth PIN Pad
+  const handlePinDigit = (digit) => {
+    if (newPin.length < 10) {
+      setNewPin(newPin + digit);
+    }
+  };
+
+  const handlePinBackspace = () => {
+    setNewPin(newPin.slice(0, -1));
+  };
+
+  const handleConfirmPinDigit = (digit) => {
+    if (confirmPin.length < 10) {
+      setConfirmPin(confirmPin + digit);
+    }
+  };
+
+  const handleConfirmPinBackspace = () => {
+    setConfirmPin(confirmPin.slice(0, -1));
+  };
+
   const handleCreatePin = () => {
     if (!newPin || !confirmPin) {
       alert('⚠️ Please fill in both fields');
@@ -313,7 +315,6 @@ const LinksAndDM = () => {
     setConfirmPin('');
     setShowPinSetup(false);
     setCurrentView('editor');
-    alert('✅ PIN created successfully!');
   };
 
   const verifyPin = () => {
@@ -324,6 +325,16 @@ const LinksAndDM = () => {
       alert('❌ Wrong PIN');
       setPinInput('');
     }
+  };
+
+  const handlePinLockDigit = (digit) => {
+    if (pinInput.length < 10) {
+      setPinInput(pinInput + digit);
+    }
+  };
+
+  const handlePinLockBackspace = () => {
+    setPinInput(pinInput.slice(0, -1));
   };
 
   const handleForgotPin = () => {
@@ -348,110 +359,163 @@ const LinksAndDM = () => {
     setCurrentView('inbox');
   };
 
-  // PIN Lock Screen
-  const PinLockScreen = ({ targetView }) => (
-    <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
-      <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
-        <h2 className="text-3xl font-bold mb-2 text-purple-600">🔒 Access Required</h2>
-        <p className="text-sm text-gray-500 mb-6">Enter PIN to access {targetView}</p>
-
-        <input
-          type="password"
-          value={pinInput}
-          onChange={(e) => setPinInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && verifyPin()}
-          placeholder="Enter your PIN"
-          className="w-full border-2 border-gray-300 rounded-xl p-4 font-bold text-xl text-center mb-4 tracking-widest"
-          maxLength="10"
-        />
-
-        <button
-          onClick={verifyPin}
-          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl mb-3 transition transform hover:scale-105"
-        >
-          Unlock
-        </button>
-
-        <button
-          onClick={() => setCurrentView('editor')}
-          className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400 mb-3 transition"
-        >
-          Back to Editor
-        </button>
-
-        <button
-          onClick={() => setShowForgotPin(true)}
-          className="w-full text-purple-600 font-bold text-sm hover:underline"
-        >
-          Forgot PIN?
-        </button>
-
-        {showForgotPin && (
-          <div className="mt-4 p-4 bg-red-50 border-2 border-red-300 rounded-xl">
-            <p className="text-sm text-gray-700 mb-3">Reset your PIN?</p>
-            <button
-              onClick={handleForgotPin}
-              className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-600 mb-2"
-            >
-              Yes, Reset PIN
-            </button>
-            <button
-              onClick={() => setShowForgotPin(false)}
-              className="w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-400"
-            >
-              Cancel
-            </button>
+  // PIN PAD Component
+  const PinPad = ({ value, onChange, onBackspace, title }) => {
+    const digits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+    
+    return (
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-bold text-gray-700 mb-2">{title}</p>
+          <div className="bg-gray-100 rounded-xl p-4 mb-3 text-center">
+            <p className="text-3xl font-bold tracking-widest text-gray-800">
+              {'●'.repeat(value.length)}
+              {value.length > 0 && value.length < 10 && <span className="text-gray-400">○</span>}
+            </p>
           </div>
+        </div>
+        
+        {/* PIN Pad Grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {digits.map(digit => (
+            <button
+              key={digit}
+              onClick={() => {
+                if (value.length < 10) {
+                  onChange(value + digit);
+                }
+              }}
+              className="bg-gradient-to-br from-purple-400 to-purple-500 text-white font-bold text-2xl py-4 rounded-xl hover:shadow-lg transition transform hover:scale-105"
+            >
+              {digit}
+            </button>
+          ))}
+        </div>
+        
+        {/* Backspace Button */}
+        <button
+          onClick={() => onBackspace()}
+          className="w-full bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition"
+        >
+          ← Delete
+        </button>
+      </div>
+    );
+  };
+
+  // PIN Setup Modal with Smooth Pad
+  const PinSetupModal = () => (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-3xl font-bold mb-2 text-center text-purple-600">🔐 Create PIN</h2>
+        <p className="text-sm text-gray-600 text-center mb-6">4-10 digits. Keep it simple to remember.</p>
+
+        <div className="space-y-6">
+          <PinPad 
+            value={newPin} 
+            onChange={setNewPin}
+            onBackspace={handlePinBackspace}
+            title="Enter PIN"
+          />
+          
+          {newPin.length >= 4 && (
+            <PinPad 
+              value={confirmPin} 
+              onChange={setConfirmPin}
+              onBackspace={handleConfirmPinBackspace}
+              title="Confirm PIN"
+            />
+          )}
+        </div>
+
+        {newPin && confirmPin && (
+          <button
+            onClick={handleCreatePin}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl mt-6 transition transform hover:scale-105"
+          >
+            ✅ Confirm PIN
+          </button>
         )}
       </div>
     </div>
   );
 
-  // PIN Setup Modal
-  const PinSetupModal = () => (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-        <h2 className="text-3xl font-bold mb-2 text-center text-purple-600">🔐 Create PIN</h2>
-        <p className="text-sm text-gray-600 text-center mb-6">Protect your editor and inbox</p>
+  // PIN Lock Screen with Smooth Pad
+  const PinLockScreen = ({ targetView }) => (
+    <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-3xl font-bold mb-2 text-center text-purple-600">🔒 Enter PIN</h2>
+        <p className="text-sm text-gray-500 text-center mb-6">{targetView}</p>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <label className="block font-bold text-sm mb-2">Enter PIN (4-10 digits)</label>
-            <input
-              type="password"
-              value={newPin}
-              onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="Enter PIN"
-              maxLength="10"
-              className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-xl text-center tracking-widest"
-            />
+            <div className="bg-gray-100 rounded-xl p-4 mb-4 text-center">
+              <p className="text-3xl font-bold tracking-widest text-gray-800">
+                {'●'.repeat(pinInput.length)}
+                {pinInput.length > 0 && pinInput.length < 10 && <span className="text-gray-400">○</span>}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <label className="block font-bold text-sm mb-2">Confirm PIN</label>
-            <input
-              type="password"
-              value={confirmPin}
-              onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-              placeholder="Confirm PIN"
-              maxLength="10"
-              className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-xl text-center tracking-widest"
-            />
+          {/* PIN Pad Grid */}
+          <div className="grid grid-cols-3 gap-2">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].map(digit => (
+              <button
+                key={digit}
+                onClick={() => handlePinLockDigit(digit)}
+                className="bg-gradient-to-br from-purple-400 to-purple-500 text-white font-bold text-2xl py-4 rounded-xl hover:shadow-lg transition transform hover:scale-105"
+              >
+                {digit}
+              </button>
+            ))}
           </div>
 
-          <div className="bg-blue-50 rounded-xl p-4">
-            <p className="text-xs text-gray-700">
-              💡 <strong>Tip:</strong> Use 4-6 digits for easy recall.
-            </p>
-          </div>
+          <button
+            onClick={() => handlePinLockBackspace()}
+            className="w-full bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition mb-2"
+          >
+            ← Delete
+          </button>
+
+          <button
+            onClick={verifyPin}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105"
+          >
+            Unlock
+          </button>
+
+          <button
+            onClick={() => setCurrentView('editor')}
+            className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400"
+          >
+            Back
+          </button>
+
+          <button
+            onClick={() => setShowForgotPin(true)}
+            className="w-full text-purple-600 font-bold text-sm hover:underline"
+          >
+            Forgot PIN?
+          </button>
+
+          {showForgotPin && (
+            <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl">
+              <p className="text-sm text-gray-700 mb-3 font-bold">Reset PIN?</p>
+              <button
+                onClick={handleForgotPin}
+                className="w-full bg-red-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-600 mb-2"
+              >
+                Yes, Reset
+              </button>
+              <button
+                onClick={() => setShowForgotPin(false)}
+                className="w-full bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-bold text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
-
-        <button
-          onClick={handleCreatePin}
-          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl mt-6 transition transform hover:scale-105"
-        >
-          Create PIN
-        </button>
       </div>
     </div>
   );
@@ -460,45 +524,87 @@ const LinksAndDM = () => {
   const ShareModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-        <h2 className="text-3xl font-bold mb-2 text-center text-purple-600">🔗 Share Your Link</h2>
-        <p className="text-sm text-gray-600 text-center mb-6">Copy this link to your Instagram bio!</p>
+        <h2 className="text-3xl font-bold mb-2 text-center text-purple-600">📱 Share Link</h2>
 
-        <div className="bg-gray-100 rounded-xl p-4 mb-4 break-all">
-          <p className="font-bold text-sm text-gray-800">{shareLink}</p>
-        </div>
-
-        <div className="space-y-2">
-          <button
-            onClick={copyToClipboard}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105"
-          >
-            📋 Copy Link
-          </button>
-
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-gray-600 text-center">Share on:</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => window.open(`https://instagram.com`, '_blank')}
-                className="flex-1 bg-pink-500 text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-pink-600"
-              >
-                📸 Instagram
-              </button>
-              <button
-                onClick={() => window.open(`https://tiktok.com`, '_blank')}
-                className="flex-1 bg-black text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-gray-800"
-              >
-                🎵 TikTok
-              </button>
-            </div>
-          </div>
+        <div className="bg-gray-100 rounded-2xl p-4 mb-4 break-all">
+          <p className="font-bold text-sm text-blue-600">{shareLink}</p>
         </div>
 
         <button
+          onClick={copyToClipboard}
+          className={`w-full px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105 mb-3 text-white ${
+            copySuccess
+              ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+              : 'bg-gradient-to-r from-purple-500 to-pink-500'
+          }`}
+        >
+          {copySuccess ? '✅ Copied!' : '📋 Copy Link'}
+        </button>
+
+        <button
           onClick={() => setShowShareModal(false)}
-          className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg mt-4 hover:bg-gray-400"
+          className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400"
         >
           Close
+        </button>
+      </div>
+    </div>
+  );
+
+  // Color Settings Modal
+  const ColorSettingsModal = () => (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-3xl font-bold mb-6 text-center text-purple-600">🎨 Custom Colors</h2>
+
+        <div className="space-y-6">
+          {Object.entries(buttonColors).map(([key, colors]) => (
+            <div key={key} className="space-y-2">
+              <p className="font-bold text-lg text-gray-800 capitalize">{key.replace(/([A-Z])/g, ' $1')}</p>
+              
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Background</label>
+                  <input
+                    type="color"
+                    value={colors.bg}
+                    onChange={(e) => setButtonColors(prev => ({
+                      ...prev,
+                      [key]: { ...prev[key], bg: e.target.value }
+                    }))}
+                    className="w-full h-10 rounded-lg cursor-pointer"
+                  />
+                </div>
+                
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Text</label>
+                  <input
+                    type="color"
+                    value={colors.text}
+                    onChange={(e) => setButtonColors(prev => ({
+                      ...prev,
+                      [key]: { ...prev[key], text: e.target.value }
+                    }))}
+                    className="w-full h-10 rounded-lg cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div
+                className="w-full py-3 rounded-lg font-bold text-center"
+                style={{ backgroundColor: colors.bg, color: colors.text }}
+              >
+                Preview
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={() => setShowColorSettings(false)}
+          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl mt-6 transition transform hover:scale-105"
+        >
+          Done
         </button>
       </div>
     </div>
@@ -617,10 +723,20 @@ const LinksAndDM = () => {
   };
 
   // ============ PUBLIC PREVIEW PAGE ============
-  if (isPublicView && publicProfileData) {
-    const theme = themes[publicProfileData.selectedTheme || 0];
+  if (isPublicPreview) {
+    if (loadingProfile) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-4xl mb-4">⏳</p>
+            <p className="text-2xl font-bold text-white">Loading...</p>
+          </div>
+        </div>
+      );
+    }
+
+    const theme = themes[profile.selectedTheme];
     const bgStyle = { background: theme.gradient };
-    const pubData = publicProfileData;
 
     return (
       <div className="min-h-screen p-8" style={bgStyle}>
@@ -633,30 +749,26 @@ const LinksAndDM = () => {
           </div>
 
           <div className="text-center mb-10">
-            {pubData.profilePic ? <img src={pubData.profilePic} alt="Profile" className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 object-cover drop-shadow-lg" /> : <div className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 bg-white/20 flex items-center justify-center text-7xl drop-shadow-lg">📸</div>}
-            <h2 className="heading-xl text-4xl text-white drop-shadow-lg mb-1">{pubData.name}</h2>
-            <p className="text-white font-bold text-xl drop-shadow-lg mb-3">{pubData.businessProfession}</p>
-            <p className="text-white/95 text-base drop-shadow-lg font-semibold">{pubData.bio}</p>
+            {profile.profilePic ? <img src={profile.profilePic} alt="Profile" className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 object-cover drop-shadow-lg" /> : <div className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 bg-white/20 flex items-center justify-center text-7xl drop-shadow-lg">📸</div>}
+            <h2 className="heading-xl text-4xl text-white drop-shadow-lg mb-1">{profile.name}</h2>
+            <p className="text-white font-bold text-xl drop-shadow-lg mb-3">{profile.businessProfession}</p>
+            <p className="text-white/95 text-base drop-shadow-lg font-semibold">{profile.bio}</p>
           </div>
 
           <div className="space-y-3 mb-5">
-            {pubData.dmButtons?.bookMeeting?.enabled && <button onClick={() => openMessageForm('bookMeeting')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.bookMeeting, color: textColors.bookMeeting }}><span className="text-4xl drop-shadow-lg">📅</span><span className="font-bold">{pubData.dmButtons.bookMeeting.label}</span></button>}
-            {pubData.dmButtons?.letsConnect?.enabled && <button onClick={() => openMessageForm('letsConnect')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.letsConnect, color: textColors.letsConnect }}><span className="text-4xl drop-shadow-lg">💬</span><span className="font-bold">{pubData.dmButtons.letsConnect.label}</span></button>}
-            {pubData.dmButtons?.collabRequest?.enabled && <button onClick={() => openMessageForm('collabRequest')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.collabRequest, color: textColors.collabRequest }}><span className="text-4xl drop-shadow-lg">🤝</span><span className="font-bold">{pubData.dmButtons.collabRequest.label}</span></button>}
-            {pubData.dmButtons?.supportCause?.enabled && pubData.charityLinks?.length > 0 && pubData.charityLinks.some(c => c.url) && <button onClick={() => setShowModal('charities')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.supportCause, color: textColors.supportCause }}><span className="text-4xl drop-shadow-lg">❤️</span><span className="font-bold">{pubData.dmButtons.supportCause.label}</span></button>}
+            {dmButtons.bookMeeting.enabled && <button onClick={() => openMessageForm('bookMeeting')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text }}><span className="text-4xl drop-shadow-lg">📅</span><span className="font-bold">{dmButtons.bookMeeting.label}</span></button>}
+            {dmButtons.letsConnect.enabled && <button onClick={() => openMessageForm('letsConnect')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text }}><span className="text-4xl drop-shadow-lg">💬</span><span className="font-bold">{dmButtons.letsConnect.label}</span></button>}
+            {dmButtons.collabRequest.enabled && <button onClick={() => openMessageForm('collabRequest')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text }}><span className="text-4xl drop-shadow-lg">🤝</span><span className="font-bold">{dmButtons.collabRequest.label}</span></button>}
+            {dmButtons.supportCause.enabled && charityLinks.length > 0 && charityLinks.some(c => c.url) && <button onClick={() => setShowModal('charities')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.supportCause.bg, color: buttonColors.supportCause.text }}><span className="text-4xl drop-shadow-lg">❤️</span><span className="font-bold">{dmButtons.supportCause.label}</span></button>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {pubData.categoryButtons?.handles?.length > 0 && <button onClick={() => setShowModal('handles')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.handles, color: textColors.handles }}><span className="text-4xl drop-shadow-lg">🌐</span><span className="text-xs leading-tight">@ Handles</span></button>}
-            {pubData.categoryButtons?.email?.length > 0 && <button onClick={() => setShowModal('email')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.email, color: textColors.email }}><span className="text-4xl drop-shadow-lg">📧</span><span className="text-xs leading-tight">@ Email</span></button>}
-            {pubData.categoryButtons?.contact?.length > 0 && <button onClick={() => setShowModal('contact')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.contact, color: textColors.contact }}><span className="text-4xl drop-shadow-lg">📱</span><span className="text-xs leading-tight">Contact</span></button>}
-            {pubData.categoryButtons?.website?.length > 0 && <button onClick={() => setShowModal('website')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.website, color: textColors.website }}><span className="text-4xl drop-shadow-lg">🌍</span><span className="text-xs leading-tight">Website</span></button>}
-            {pubData.portfolio?.enabled && <button onClick={() => { if (pubData.portfolio?.url) window.open(formatUrl(pubData.portfolio.url), '_blank'); }} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.portfolio, color: textColors.portfolio }}><span className="text-4xl drop-shadow-lg">🎨</span><span className="text-xs leading-tight">Portfolio</span></button>}
-            {pubData.projects?.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.projects, color: textColors.projects }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
-          </div>
-
-          <div className="text-center mt-10 text-white/90">
-            <p className="text-lg font-bold drop-shadow-lg mb-5">✨ Send a message below! 🚀</p>
+            {categoryButtons.handles.length > 0 && <button onClick={() => setShowModal('handles')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.handles.bg, color: buttonColors.handles.text }}><span className="text-4xl drop-shadow-lg">🌐</span><span className="text-xs leading-tight">@ Handles</span></button>}
+            {categoryButtons.email.length > 0 && <button onClick={() => setShowModal('email')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.email.bg, color: buttonColors.email.text }}><span className="text-4xl drop-shadow-lg">📧</span><span className="text-xs leading-tight">@ Email</span></button>}
+            {categoryButtons.contact.length > 0 && <button onClick={() => setShowModal('contact')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.contact.bg, color: buttonColors.contact.text }}><span className="text-4xl drop-shadow-lg">📱</span><span className="text-xs leading-tight">Contact</span></button>}
+            {categoryButtons.website.length > 0 && <button onClick={() => setShowModal('website')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.website.bg, color: buttonColors.website.text }}><span className="text-4xl drop-shadow-lg">🌍</span><span className="text-xs leading-tight">Website</span></button>}
+            {portfolio.enabled && <button onClick={() => { if (portfolio.url) window.open(formatUrl(portfolio.url), '_blank'); }} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.portfolio.bg, color: buttonColors.portfolio.text }}><span className="text-4xl drop-shadow-lg">🎨</span><span className="text-xs leading-tight">Portfolio</span></button>}
+            {projects.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.projects.bg, color: buttonColors.projects.text }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
           </div>
         </div>
 
@@ -684,12 +796,10 @@ const LinksAndDM = () => {
             <div className="bg-white rounded-3xl p-8 drop-shadow-2xl border-4 border-green-400 animate-bounce">
               <p className="text-4xl mb-3">✅</p>
               <p className="text-xl font-bold text-gray-800">Message Sent!</p>
-              <p className="text-sm text-gray-600">Thanks for reaching out! 🎉</p>
             </div>
           </div>
         )}
 
-        {/* Modals for links */}
         {showModal === 'handles' && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
@@ -698,7 +808,7 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.categoryButtons?.handles?.map((item, idx) => (
+                {categoryButtons.handles.map((item, idx) => (
                   <a key={idx} href={getSocialMediaUrl(item.platform, item.handle)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition cursor-pointer">
                     <p className="text-sm text-gray-600 font-bold">{item.platform}</p>
                     <p className="text-lg font-bold text-blue-600 break-all hover:underline">{item.handle}</p>
@@ -717,7 +827,7 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.categoryButtons?.email?.map((item, idx) => (
+                {categoryButtons.email.map((item, idx) => (
                   <a key={idx} href={`mailto:${item.email}`} className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition">
                     <p className="text-lg font-bold text-blue-600 break-all">{item.email}</p>
                   </a>
@@ -735,7 +845,7 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.categoryButtons?.contact?.map((item, idx) => (
+                {categoryButtons.contact.map((item, idx) => (
                   <a key={idx} href={`tel:${item.phone}`} className="block bg-gray-100 rounded-xl p-4 hover:bg-green-100 transition">
                     <p className="text-lg font-bold text-green-600 break-all">{item.phone}</p>
                   </a>
@@ -753,7 +863,7 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.categoryButtons?.website?.map((item, idx) => (
+                {categoryButtons.website.map((item, idx) => (
                   <a key={idx} href={formatUrl(item.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-purple-100 transition cursor-pointer">
                     <p className="text-lg font-bold text-purple-600 break-all hover:underline">{item.url}</p>
                   </a>
@@ -771,11 +881,10 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.projects?.list?.map((proj, idx) => (
+                {projects.list.map((proj, idx) => (
                   <a key={idx} href={formatUrl(proj.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-orange-100 transition cursor-pointer">
                     <p className="text-sm text-gray-600 font-bold">Project</p>
                     <p className="text-lg font-bold text-orange-600 break-all hover:underline">{proj.title}</p>
-                    <p className="text-xs text-gray-500 break-all">{proj.url}</p>
                   </a>
                 ))}
               </div>
@@ -791,7 +900,7 @@ const LinksAndDM = () => {
                 <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
               </div>
               <div className="space-y-3">
-                {pubData.charityLinks?.filter(c => c.url).map((charity, idx) => (
+                {charityLinks.filter(c => c.url).map((charity, idx) => (
                   <a key={idx} href={formatUrl(charity.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-pink-100 transition cursor-pointer">
                     <p className="text-sm text-gray-600 font-bold">{charity.name || 'Charity'}</p>
                     <p className="text-lg font-bold text-pink-600 break-all hover:underline">{charity.url}</p>
@@ -819,37 +928,37 @@ const LinksAndDM = () => {
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>One Link.</h1>
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>Sorted DMs.</h1>
             <p className="text-2xl font-bold text-white drop-shadow-lg mb-3" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>The Ultimate Link-in-Bio for Creators 🌟</p>
-            <p className="text-xl font-bold text-white drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Share ONE link in your bio. Get organized messages. Build your empire.</p>
+            <p className="text-xl font-bold text-white drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Manage all your links, messages & projects in one beautiful place</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16">
-            {[{ emoji: '🔗', title: 'One Unique Link', desc: 'Share to Instagram, TikTok, everywhere', gradient: 'from-blue-500 to-cyan-500' }, { emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize messages by type', gradient: 'from-pink-500 to-rose-500' }, { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'from-purple-500 to-indigo-500' }, { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms', gradient: 'from-cyan-500 to-blue-500' }, { emoji: '📧', title: 'Email Hub', desc: 'Never miss important messages', gradient: 'from-blue-500 to-cyan-400' }, { emoji: '📁', title: 'Portfolio & Projects', desc: 'Showcase your work', gradient: 'from-orange-500 to-yellow-500' }].map((feature, idx) => (
+            {[{ emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'from-pink-500 to-rose-500' }, { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'from-purple-500 to-indigo-500' }, { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms instantly', gradient: 'from-cyan-500 to-blue-500' }, { emoji: '📧', title: 'Email Hub', desc: 'Never miss important emails', gradient: 'from-blue-500 to-cyan-400' }, { emoji: '📁', title: 'Portfolio & Projects', desc: 'Showcase your incredible work', gradient: 'from-orange-500 to-yellow-500' }, { emoji: '📞', title: 'Contact Central', desc: 'Phone, web, everything connected', gradient: 'from-green-500 to-emerald-500' }].map((feature, idx) => (
               <div key={idx} className={`bg-gradient-to-br ${feature.gradient} rounded-3xl p-6 hover:shadow-2xl transition transform hover:scale-105 drop-shadow-xl border-4 border-white/30 cursor-pointer`}>
-                <div className="text-6xl mb-3 drop-shadow-lg" style={{ filter: 'drop-shadow(3px 3px 0px rgba(0,0,0,0.2))' }}>{feature.emoji}</div>
-                <h3 className="heading-md text-2xl mb-2 text-white drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>{feature.title}</h3>
-                <p className="text-base font-bold text-white drop-shadow-md" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>{feature.desc}</p>
+                <div className="text-6xl mb-3 drop-shadow-lg">{feature.emoji}</div>
+                <h3 className="heading-md text-2xl mb-2 text-white drop-shadow-lg">{feature.title}</h3>
+                <p className="text-base font-bold text-white drop-shadow-md">{feature.desc}</p>
               </div>
             ))}
           </div>
 
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl border-4 border-white p-10 max-w-2xl mx-auto text-center drop-shadow-2xl">
-            <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Your All-in-One Creator Hub 🚀</h3>
+            <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Transform Your Link-in-Bio Today 🚀</h3>
             <button
               onClick={() => setShowPinSetup(true)}
               className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200"
             >
-              Get Your Link Now
+              Get Started Now
             </button>
             <button
               onClick={() => setShowPinSetup(true)}
-              className="bg-white/30 border-4 border-white text-white px-12 py-5 rounded-3xl font-bold text-2xl hover:bg-white/50 transition transform hover:scale-110 w-full drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}
+              className="bg-white/30 border-4 border-white text-white px-12 py-5 rounded-3xl font-bold text-2xl hover:bg-white/50 transition transform hover:scale-110 w-full drop-shadow-lg"
             >
               Let's Do It! ✨
             </button>
           </div>
 
           <div className="text-center mt-16 text-white drop-shadow-lg">
-            <p className="font-bold text-xl drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📸 Perfect for Instagram • 🎵 Perfect for TikTok • 📹 Perfect for ALL Creators 💎</p>
+            <p className="font-bold text-xl drop-shadow-lg">Trusted by Influencers, Celebrities & Brands 💎</p>
           </div>
         </div>
 
@@ -866,8 +975,8 @@ const LinksAndDM = () => {
         <div className="max-w-5xl mx-auto">
 
           <div className="text-center mb-14">
-            <h1 className="heading-xl text-5xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>✏️ Edit Your Profile</h1>
-            <div className="flex justify-center gap-4">
+            <h1 className="heading-xl text-5xl text-white drop-shadow-2xl mb-8">✏️ Edit Your Profile</h1>
+            <div className="flex justify-center gap-4 flex-wrap">
               <button
                 onClick={() => setCurrentView('landing')}
                 className="bg-white text-purple-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200"
@@ -901,35 +1010,41 @@ const LinksAndDM = () => {
             <div className="space-y-5">
               <div><label className="block font-bold text-2xl mb-2">Name</label><input type="text" value={profile.name} onChange={(e) => handleProfileChange('name', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg" maxLength="50" /></div>
               <div><label className="block font-bold text-2xl mb-2">Profession</label><input type="text" value={profile.businessProfession} onChange={(e) => handleProfileChange('businessProfession', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg" maxLength="50" /></div>
-              <div><label className="block font-bold text-2xl mb-2">Bio</label><textarea value={profile.bio} onChange={(e) => handleProfileChange('bio', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg h-24 resize-none" placeholder="Add your bio! 🎉" maxLength="200" /></div>
-              <div>
-                <label className="block font-bold text-2xl mb-2">Username (for sharing link)</label>
-                <input type="text" value={profile.username} onChange={(e) => handleProfileChange('username', e.target.value)} placeholder="e.g., john_creator" className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg" maxLength="30" />
-                {profile.username && <p className="text-sm text-gray-600 mt-2">✅ Your link: linksandm.com/user/{profile.username}</p>}
+              <div><label className="block font-bold text-2xl mb-2">Bio</label><textarea value={profile.bio} onChange={(e) => handleProfileChange('bio', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg h-24 resize-none" maxLength="200" /></div>
+              
+              <div className="bg-blue-50 rounded-2xl p-5 border-2 border-blue-300">
+                <label className="block font-bold text-2xl mb-2 text-blue-900">📱 Username</label>
+                <input 
+                  type="text" 
+                  value={profile.username} 
+                  onChange={(e) => handleProfileChange('username', e.target.value)} 
+                  placeholder="e.g., john_doe" 
+                  className="w-full bg-white border-0 rounded-2xl p-3 font-bold text-lg mb-3" 
+                  maxLength="30" 
+                />
+                {profile.username && (
+                  <button
+                    onClick={generateShareLink}
+                    className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105"
+                  >
+                    🔗 Generate Share Link
+                  </button>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Share Button - PROMINENT */}
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-4" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🔗 Share Your Link</h2>
-            <p className="text-white font-bold text-sm mb-4">Add this to your Instagram bio and TikTok!</p>
-            <button
-              onClick={() => { saveProfileToFirebase(); generateShareLink(); }}
-              className="w-full bg-white text-green-600 px-6 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105 mb-3"
-            >
-              📋 Generate & Copy Link
-            </button>
-            {profile.username && (
-              <p className="text-white text-sm font-bold text-center break-all">
-                linksandm.com/user/{profile.username}
-              </p>
-            )}
-          </div>
-
           {/* DM Buttons Section */}
           <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-8" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>💌 Smart DM Buttons</h2>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="heading-md text-3xl text-white" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>💌 Smart DM Buttons</h2>
+              <button
+                onClick={() => setShowColorSettings(true)}
+                className="bg-white/20 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-white/30"
+              >
+                🎨 Colors
+              </button>
+            </div>
             <div className="space-y-4">
               {Object.entries(dmButtons).map(([key, btn]) => (
                 <div key={key} className="bg-white/95 rounded-2xl p-5 border-2 border-white/50">
@@ -1064,9 +1179,11 @@ const LinksAndDM = () => {
           </div>
 
           <div className="text-center mb-6 text-white drop-shadow-lg">
-            <p className="font-bold text-xl drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Powered by Links & DM 💎</p>
+            <p className="font-bold text-xl drop-shadow-lg">Powered by Links & DM 💎</p>
           </div>
         </div>
+
+        {showColorSettings && <ColorSettingsModal />}
       </div>
     );
   }
@@ -1094,24 +1211,23 @@ const LinksAndDM = () => {
           </div>
 
           <div className="space-y-3 mb-5">
-            {dmButtons.bookMeeting.enabled && <button onClick={() => openMessageForm('bookMeeting')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.bookMeeting, color: textColors.bookMeeting }}><span className="text-4xl drop-shadow-lg">📅</span><span className="font-bold">{dmButtons.bookMeeting.label}</span></button>}
-            {dmButtons.letsConnect.enabled && <button onClick={() => openMessageForm('letsConnect')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.letsConnect, color: textColors.letsConnect }}><span className="text-4xl drop-shadow-lg">💬</span><span className="font-bold">{dmButtons.letsConnect.label}</span></button>}
-            {dmButtons.collabRequest.enabled && <button onClick={() => openMessageForm('collabRequest')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.collabRequest, color: textColors.collabRequest }}><span className="text-4xl drop-shadow-lg">🤝</span><span className="font-bold">{dmButtons.collabRequest.label}</span></button>}
-            {dmButtons.supportCause.enabled && charityLinks.length > 0 && charityLinks.some(c => c.url) && <button onClick={() => setShowModal('charities')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: pastelColors.supportCause, color: textColors.supportCause }}><span className="text-4xl drop-shadow-lg">❤️</span><span className="font-bold">{dmButtons.supportCause.label}</span></button>}
+            {dmButtons.bookMeeting.enabled && <button onClick={() => openMessageForm('bookMeeting')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text }}><span className="text-4xl drop-shadow-lg">📅</span><span className="font-bold">{dmButtons.bookMeeting.label}</span></button>}
+            {dmButtons.letsConnect.enabled && <button onClick={() => openMessageForm('letsConnect')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text }}><span className="text-4xl drop-shadow-lg">💬</span><span className="font-bold">{dmButtons.letsConnect.label}</span></button>}
+            {dmButtons.collabRequest.enabled && <button onClick={() => openMessageForm('collabRequest')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text }}><span className="text-4xl drop-shadow-lg">🤝</span><span className="font-bold">{dmButtons.collabRequest.label}</span></button>}
+            {dmButtons.supportCause.enabled && charityLinks.length > 0 && charityLinks.some(c => c.url) && <button onClick={() => setShowModal('charities')} className="w-full rounded-3xl py-5 px-6 font-bold text-lg hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3" style={{ backgroundColor: buttonColors.supportCause.bg, color: buttonColors.supportCause.text }}><span className="text-4xl drop-shadow-lg">❤️</span><span className="font-bold">{dmButtons.supportCause.label}</span></button>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {categoryButtons.handles.length > 0 && <button onClick={() => setShowModal('handles')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.handles, color: textColors.handles }}><span className="text-4xl drop-shadow-lg">🌐</span><span className="text-xs leading-tight">@ Handles</span></button>}
-            {categoryButtons.email.length > 0 && <button onClick={() => setShowModal('email')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.email, color: textColors.email }}><span className="text-4xl drop-shadow-lg">📧</span><span className="text-xs leading-tight">@ Email</span></button>}
-            {categoryButtons.contact.length > 0 && <button onClick={() => setShowModal('contact')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.contact, color: textColors.contact }}><span className="text-4xl drop-shadow-lg">📱</span><span className="text-xs leading-tight">Contact</span></button>}
-            {categoryButtons.website.length > 0 && <button onClick={() => setShowModal('website')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.website, color: textColors.website }}><span className="text-4xl drop-shadow-lg">🌍</span><span className="text-xs leading-tight">Website</span></button>}
-            {portfolio.enabled && <button onClick={() => { if (portfolio.url) window.open(formatUrl(portfolio.url), '_blank'); }} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.portfolio, color: textColors.portfolio }}><span className="text-4xl drop-shadow-lg">🎨</span><span className="text-xs leading-tight">Portfolio</span></button>}
-            {projects.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.projects, color: textColors.projects }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
+            {categoryButtons.handles.length > 0 && <button onClick={() => setShowModal('handles')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.handles.bg, color: buttonColors.handles.text }}><span className="text-4xl drop-shadow-lg">🌐</span><span className="text-xs leading-tight">@ Handles</span></button>}
+            {categoryButtons.email.length > 0 && <button onClick={() => setShowModal('email')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.email.bg, color: buttonColors.email.text }}><span className="text-4xl drop-shadow-lg">📧</span><span className="text-xs leading-tight">@ Email</span></button>}
+            {categoryButtons.contact.length > 0 && <button onClick={() => setShowModal('contact')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.contact.bg, color: buttonColors.contact.text }}><span className="text-4xl drop-shadow-lg">📱</span><span className="text-xs leading-tight">Contact</span></button>}
+            {categoryButtons.website.length > 0 && <button onClick={() => setShowModal('website')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.website.bg, color: buttonColors.website.text }}><span className="text-4xl drop-shadow-lg">🌍</span><span className="text-xs leading-tight">Website</span></button>}
+            {portfolio.enabled && <button onClick={() => { if (portfolio.url) window.open(formatUrl(portfolio.url), '_blank'); }} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.portfolio.bg, color: buttonColors.portfolio.text }}><span className="text-4xl drop-shadow-lg">🎨</span><span className="text-xs leading-tight">Portfolio</span></button>}
+            {projects.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: buttonColors.projects.bg, color: buttonColors.projects.text }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
           </div>
 
-          <div className="text-center mt-10 text-white/90">
-            <p className="text-lg font-bold drop-shadow-lg mb-5">✨ This is the public page your followers see! 🚀</p>
-            <button onClick={() => { setCurrentView('editor'); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">← Back to Edit</button>
+          <div className="text-center mt-10">
+            <button onClick={() => { saveProfileToFirebase(); setCurrentView('editor'); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg">← Back to Edit</button>
           </div>
         </div>
 
@@ -1139,12 +1255,10 @@ const LinksAndDM = () => {
             <div className="bg-white rounded-3xl p-8 drop-shadow-2xl border-4 border-green-400 animate-bounce">
               <p className="text-4xl mb-3">✅</p>
               <p className="text-xl font-bold text-gray-800">Message Sent!</p>
-              <p className="text-sm text-gray-600">You'll hear back soon 🎉</p>
             </div>
           </div>
         )}
 
-        {/* Link Modals */}
         {showModal === 'handles' && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
             <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
@@ -1230,7 +1344,6 @@ const LinksAndDM = () => {
                   <a key={idx} href={formatUrl(proj.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-orange-100 transition cursor-pointer">
                     <p className="text-sm text-gray-600 font-bold">Project</p>
                     <p className="text-lg font-bold text-orange-600 break-all hover:underline">{proj.title}</p>
-                    <p className="text-xs text-gray-500 break-all">{proj.url}</p>
                   </a>
                 ))}
               </div>
@@ -1314,6 +1427,16 @@ const LinksAndDM = () => {
         </div>
       </div>
     );
+  }
+
+  // Share Modal
+  if (showShareModal && !isPublicPreview) {
+    return <ShareModal />;
+  }
+
+  // Color Settings Modal
+  if (showColorSettings) {
+    return <ColorSettingsModal />;
   }
 
   return null;
