@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import LinksAndDM from './LinksAndDM';
+import LinksAndDM from './LinksandDM';
 
 function App() {
   const [user, setUser] = useState(null);
