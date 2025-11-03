@@ -12,8 +12,11 @@ const LinksAndDM = () => {
   const [profileId, setProfileId] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [masterPin, setMasterPin] = useState('');
-  const [pinInput, setPinInput] = useState('');
-  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinInputSetup, setPinInputSetup] = useState('');
+  const [pinInputAccess, setPinInputAccess] = useState('');
+  const [editorLocked, setEditorLocked] = useState(true);
+  const [inboxLocked, setInboxLocked] = useState(true);
 
   const [profile, setProfile] = useState({
     name: 'Your Name Here',
@@ -233,58 +236,44 @@ const LinksAndDM = () => {
     return platformUrls[platform] || `https://${cleanHandle}`;
   };
 
-  const handleLandingClick = () => {
-    if (masterPin === '') {
-      alert('Please set a PIN first on the preview page');
-      setCurrentView('preview');
-      return;
-    }
-    setCurrentView('landing');
-    setIsPinVerified(false);
-    setPinInput('');
-  };
-
-  const handleEditorClick = () => {
-    if (masterPin === '') {
-      alert('Please set a PIN first on the preview page');
-      setCurrentView('preview');
-      return;
-    }
+  const handleSetPin = () => {
+    if (pinInputSetup.length < 4) { alert('PIN must be at least 4 characters'); return; }
+    setMasterPin(pinInputSetup);
+    setShowPinSetup(false);
+    setPinInputSetup('');
     setCurrentView('editor');
-    setIsPinVerified(false);
-    setPinInput('');
   };
 
-  const verifyPin = () => {
-    if (pinInput === masterPin && masterPin !== '') {
-      setIsPinVerified(true);
+  const handleUnlockEditor = () => {
+    if (pinInputAccess === masterPin && masterPin !== '') {
+      setEditorLocked(false);
+      setPinInputAccess('');
+      setCurrentView('editor');
     } else {
       alert('Wrong PIN');
-      setPinInput('');
+      setPinInputAccess('');
     }
   };
 
-  const PinLockScreen = ({ onUnlock, targetView }) => (
-    <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
-      <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
-        <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Access Required</h2>
-        <p className="text-gray-600 mb-6">Enter PIN to continue</p>
-        <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') verifyPin(); }} placeholder="Enter PIN" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4" />
-        <button onClick={verifyPin} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3">Unlock</button>
-        <button onClick={() => setCurrentView('preview')} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400">Back to Preview</button>
-      </div>
-    </div>
-  );
+  const handleUnlockInbox = () => {
+    if (pinInputAccess === masterPin && masterPin !== '') {
+      setInboxLocked(false);
+      setPinInputAccess('');
+      setCurrentView('inbox');
+    } else {
+      alert('Wrong PIN');
+      setPinInputAccess('');
+    }
+  };
 
   if (currentView === 'landing') {
-    if (!isPinVerified) return <PinLockScreen />;
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; } .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }`}</style>
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-12">
             <h1 className="heading-lg text-5xl text-white drop-shadow-2xl" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.2)' }}>🔗 Links & DM 💬</h1>
-            <button onClick={handleEditorClick} className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">Let's Do It!</button>
+            <button onClick={() => setShowPinSetup(true)} className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">Let's Do It!</button>
           </div>
           <div className="text-center mb-20">
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>One Link.</h1>
@@ -303,13 +292,25 @@ const LinksAndDM = () => {
           </div>
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl border-4 border-white p-10 max-w-2xl mx-auto text-center drop-shadow-2xl">
             <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Transform Your Link-in-Bio Today 🚀</h3>
-            <button onClick={handleEditorClick} className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200">Get Started Now</button>
+            <button onClick={() => setShowPinSetup(true)} className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200">Get Started Now</button>
             <button onClick={() => setCurrentView('preview')} className="bg-white/30 border-4 border-white text-white px-12 py-5 rounded-3xl font-bold text-2xl hover:bg-white/50 transition transform hover:scale-110 w-full drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>See Demo ✨</button>
           </div>
           <div className="text-center mt-16 text-white drop-shadow-lg">
             <p className="font-bold text-xl drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Trusted by Influencers, Celebrities & Brands 💎</p>
           </div>
         </div>
+
+        {showPinSetup && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
+              <h2 className="text-3xl font-bold mb-6 text-purple-600">🔐 Setup PIN</h2>
+              <p className="text-gray-600 mb-4">Set a PIN to protect your editor and inbox</p>
+              <input type="password" value={pinInputSetup} onChange={(e) => setPinInputSetup(e.target.value)} placeholder="Enter PIN (4+ characters)" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4" />
+              <button onClick={handleSetPin} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3">Set PIN</button>
+              <button onClick={() => setShowPinSetup(false)} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400">Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -346,15 +347,14 @@ const LinksAndDM = () => {
             {projects.enabled && <button onClick={() => setShowModal('projects')} className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1" style={{ backgroundColor: pastelColors.projects, color: textColors.projects }}><span className="text-4xl drop-shadow-lg">📁</span><span className="text-xs leading-tight">Projects</span></button>}
           </div>
           <div className="text-center mt-10">
-            <div className="mb-5 bg-white/30 rounded-2xl p-4 backdrop-blur">
-              <p className="text-white font-bold mb-2">🔐 Set Master PIN:</p>
-              <input type="password" value={masterPin} onChange={(e) => setMasterPin(e.target.value)} placeholder="Set PIN for access" maxLength="10" className="w-full border-2 border-white rounded-xl p-2 font-bold text-center mb-2" />
-              {masterPin && <p className="text-white text-sm">PIN set: {masterPin}</p>}
-            </div>
             <p className="text-lg font-bold drop-shadow-lg mb-5 text-white/90">Ready to connect! 🚀</p>
-            <button onClick={handleLandingClick} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">← Back</button>
-            <button onClick={handleEditorClick} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">✏️ Editor</button>
-            <button onClick={() => { if (masterPin === '') { alert('Please set a PIN first'); return; } setCurrentView('inbox'); setIsPinVerified(false); setPinInput(''); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg">📬 Inbox ({messages.length})</button>
+            <button onClick={() => setCurrentView('landing')} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">← Back</button>
+            {masterPin && (
+              <>
+                <button onClick={() => { setEditorLocked(true); setCurrentView('editor'); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2">✏️ Editor</button>
+                <button onClick={() => { setInboxLocked(true); setCurrentView('inbox'); }} className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg">📬 Inbox ({messages.length})</button>
+              </>
+            )}
           </div>
         </div>
 
@@ -502,13 +502,26 @@ const LinksAndDM = () => {
   }
 
   if (currentView === 'inbox') {
-    if (!isPinVerified) return <PinLockScreen />;
+    if (inboxLocked) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Inbox Locked</h2>
+            <p className="text-gray-600 mb-4">Enter PIN to access</p>
+            <input type="password" value={pinInputAccess} onChange={(e) => setPinInputAccess(e.target.value)} placeholder="Enter PIN" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4" />
+            <button onClick={handleUnlockInbox} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3">Unlock</button>
+            <button onClick={() => setCurrentView('preview')} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400">Back</button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }`}</style>
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-8">
-            <button onClick={() => { setCurrentView('preview'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">← Back</button>
+            <button onClick={() => setCurrentView('preview')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">← Back</button>
             <h1 className="text-4xl text-white drop-shadow-lg font-bold">📬 Messages</h1>
           </div>
           <div className="bg-white rounded-3xl p-6 mb-6 shadow-xl">
@@ -554,7 +567,20 @@ const LinksAndDM = () => {
   }
 
   if (currentView === 'editor') {
-    if (!isPinVerified) return <PinLockScreen />;
+    if (editorLocked) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+            <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Editor Locked</h2>
+            <p className="text-gray-600 mb-4">Enter PIN to edit</p>
+            <input type="password" value={pinInputAccess} onChange={(e) => setPinInputAccess(e.target.value)} placeholder="Enter PIN" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4" />
+            <button onClick={handleUnlockEditor} className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3">Unlock</button>
+            <button onClick={() => setCurrentView('preview')} className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400">Back</button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }`}</style>
@@ -563,8 +589,8 @@ const LinksAndDM = () => {
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>One Link.</h1>
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>Sorted DMs</h1>
             <div className="flex justify-center gap-4">
-              <button onClick={() => { setCurrentView('preview'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
-              <button onClick={() => { setCurrentView('inbox'); setIsPinVerified(false); setPinInput(''); }} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
+              <button onClick={() => setCurrentView('preview')} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
+              <button onClick={() => { setInboxLocked(true); setCurrentView('inbox'); }} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
             </div>
           </div>
 
