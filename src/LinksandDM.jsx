@@ -4,11 +4,9 @@ import { db, auth } from './firebase';
 
 import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 
-import { sendPasswordResetEmail } from 'firebase/auth';
 
 
-
-const LinksAndDM = () => {
+const LinksAndDM = ({ user }) => {
 
   const [currentView, setCurrentView] = useState('landing');
 
