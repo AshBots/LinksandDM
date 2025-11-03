@@ -5,14 +5,15 @@ import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc, setDoc, ge
 const LinksAndDM = () => {
   const [currentView, setCurrentView] = useState('landing');
   const [profileId, setProfileId] = useState(null);
+  const [previewUsername, setPreviewUsername] = useState(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [masterPattern, setMasterPattern] = useState('');
-  const [patternInput, setPatternInput] = useState([]);
-  const [isPatternVerified, setIsPatternVerified] = useState(false);
-  const [showForgotPattern, setShowForgotPattern] = useState(false);
+  const [masterPasscode, setMasterPasscode] = useState('');
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [isPasscodeVerified, setIsPasscodeVerified] = useState(false);
+  const [showForgotPasscode, setShowForgotPasscode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [resetSent, setResetSent] = useState(false);
   const [showMessageForm, setShowMessageForm] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
   const [currentMessageType, setCurrentMessageType] = useState(null);
   const [inboxFilter, setInboxFilter] = useState('all');
   const [messages, setMessages] = useState([]);
@@ -23,6 +24,7 @@ const LinksAndDM = () => {
     background: '#40E0D0',
     text: '#000000',
   });
+  const [previewData, setPreviewData] = useState(null);
 
   const [profile, setProfile] = useState({
     name: 'Your Name Here',
@@ -32,6 +34,7 @@ const LinksAndDM = () => {
     selectedTheme: 0,
     customTheme: null,
     username: '',
+    accountEmail: '',
   });
 
   const [dmButtons, setDmButtons] = useState({
@@ -48,7 +51,6 @@ const LinksAndDM = () => {
     website: [{ url: '', bgColor: '#DDA0DD', textColor: '#663399' }],
   });
 
-  const [charityLinks, setCharityLinks] = useState([{ name: '', url: '' }]);
   const [portfolio, setPortfolio] = useState({ enabled: true, url: '', bgColor: '#B0E0E6', textColor: '#1E90FF' });
   const [projects, setProjects] = useState({ enabled: true, list: [{ title: '', url: '' }], bgColor: '#FFDAB9', textColor: '#FF8C00' });
   const [priorityContacts, setPriorityContacts] = useState([{ handle: '@yourfriend' }]);
@@ -67,9 +69,6 @@ const LinksAndDM = () => {
     { name: 'Sky', gradient: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)' },
     { name: 'Orchid Dream', gradient: 'linear-gradient(135deg, #DA70D6 0%, #EE82EE 100%)' },
   ];
-
-  const patternGridSize = 3;
-  const patternDots = Array.from({ length: patternGridSize * patternGridSize }, (_, i) => i);
 
   useEffect(() => {
     const storedProfileId = localStorage.getItem('linksAndDmProfileId');
@@ -95,7 +94,7 @@ const LinksAndDM = () => {
       if (userSnap.exists()) {
         const data = userSnap.data();
         setProfile(prev => ({ ...prev, ...data.profile }));
-        setMasterPattern(data.masterPattern || '');
+        setMasterPasscode(data.masterPasscode || '');
         setDmButtons(data.dmButtons || dmButtons);
         setCategory(data.categoryButtons || categoryButtons);
         setPortfolio(data.portfolio || portfolio);
@@ -113,7 +112,7 @@ const LinksAndDM = () => {
     try {
       await setDoc(doc(db, 'profiles', profileId), {
         profile,
-        masterPattern,
+        masterPasscode,
         dmButtons,
         categoryButtons,
         portfolio,
@@ -173,6 +172,28 @@ const LinksAndDM = () => {
     }
   };
 
+  const loadPublicProfile = async (username) => {
+    try {
+      const profilesRef = collection(db, 'profiles');
+      const q = query(profilesRef);
+      const querySnapshot = await getDocs(q);
+      let found = null;
+      querySnapshot.forEach((doc) => {
+        if (doc.data().profile?.username === username) {
+          found = doc.data();
+        }
+      });
+      if (found) {
+        setPreviewData(found);
+      } else {
+        setPreviewData(null);
+      }
+    } catch (error) {
+      console.error('Error loading public profile:', error);
+      setPreviewData(null);
+    }
+  };
+
   const isPriority = (contactInfo) => {
     return priorityContacts.some(pc => pc.handle.toLowerCase().includes(contactInfo.toLowerCase()) || contactInfo.toLowerCase().includes(pc.handle.toLowerCase()));
   };
@@ -198,8 +219,6 @@ const LinksAndDM = () => {
     setMessages([newMessage, ...messages]);
     setFormData({ name: '', contactInfo: '', message: '' });
     setShowMessageForm(false);
-    setShowConfirmation(true);
-    setTimeout(() => setShowConfirmation(false), 3000);
   };
 
   const toggleStar = (index) => {
@@ -289,146 +308,50 @@ const LinksAndDM = () => {
       'Discord': `https://discord.com/users/${cleanHandle}`,
       'Twitch': `https://twitch.tv/${cleanHandle}`,
       'Reddit': `https://reddit.com/u/${cleanHandle}`,
-      'BeReal': `https://bereal.com/${cleanHandle}`,
-      'Bluesky': `https://bsky.app/profile/${cleanHandle}`,
-      'Mastodon': `https://${cleanHandle}`,
     };
     return platformUrls[platform] || `https://${cleanHandle}`;
   };
 
-  const PatternLock = ({ isSetup = false, onUnlock = null, onSetupComplete = null }) => {
-    const [localPattern, setLocalPattern] = useState([]);
-    const [confirmPattern, setConfirmPattern] = useState(null);
-    const [step, setStep] = useState('draw');
-
-    const handleDotClick = (dotIndex) => {
-      if (isSetup && confirmPattern !== null) {
-        // Confirming pattern
-        const newConfirmPattern = [...confirmPattern, dotIndex];
-        setConfirmPattern(newConfirmPattern);
-        if (newConfirmPattern.length >= 4 && JSON.stringify(newConfirmPattern) === JSON.stringify(localPattern)) {
-          setMasterPattern(localPattern.join(','));
-          onSetupComplete?.(localPattern.join(','));
-        } else if (newConfirmPattern.length === localPattern.length && JSON.stringify(newConfirmPattern) !== JSON.stringify(localPattern)) {
-          alert('Patterns do not match. Try again.');
-          setConfirmPattern(null);
-        }
-      } else if (isSetup && confirmPattern === null) {
-        // Setting pattern
-        const newPattern = [...localPattern, dotIndex];
-        setLocalPattern(newPattern);
-        if (newPattern.length >= 4) {
-          setConfirmPattern([]);
-          setStep('confirm');
-        }
-      } else {
-        // Verifying pattern
-        const newPattern = [...localPattern, dotIndex];
-        setLocalPattern(newPattern);
-        if (newPattern.length === masterPattern.split(',').length) {
-          if (JSON.stringify(newPattern) === JSON.stringify(masterPattern.split(',').map(Number))) {
-            setIsPatternVerified(true);
-            onUnlock?.();
-          } else {
-            alert('Wrong pattern');
-            setLocalPattern([]);
-          }
-        }
-      }
-    };
-
-    const getPatternLine = () => {
-      if (localPattern.length < 2) return null;
-      const positions = localPattern.map(i => ({
-        x: (i % patternGridSize) * 33.33 + 16.67,
-        y: Math.floor(i / patternGridSize) * 33.33 + 16.67,
-      }));
-      const points = positions.map(p => `${p.x},${p.y}`).join(' ');
-      return points;
-    };
-
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
-        <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-          <h2 className="text-3xl font-bold mb-2 text-purple-600 text-center">🔒 Pattern Lock</h2>
-          <p className="text-gray-600 text-center mb-6">
-            {isSetup ? (step === 'draw' ? 'Draw a pattern (minimum 4 dots)' : 'Confirm your pattern') : 'Draw your pattern to unlock'}
-          </p>
-
-          <div className="mb-6 flex justify-center">
-            <svg width="200" height="200" className="bg-gray-100 rounded-lg" style={{ touchAction: 'none' }}>
-              {getPatternLine() && (
-                <polyline points={getPatternLine()} stroke="#9333ea" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              )}
-              {patternDots.map((dot) => (
-                <circle
-                  key={dot}
-                  cx={(dot % patternGridSize) * 66.67 + 33.33}
-                  cy={Math.floor(dot / patternGridSize) * 66.67 + 33.33}
-                  r="20"
-                  fill={localPattern.includes(dot) ? '#9333ea' : '#e0e7ff'}
-                  stroke="#9333ea"
-                  strokeWidth="2"
-                  onClick={() => handleDotClick(dot)}
-                  style={{ cursor: 'pointer' }}
-                  className="hover:fill-purple-200 transition"
-                />
-              ))}
-            </svg>
-          </div>
-
-          {localPattern.length > 0 && (
-            <button
-              onClick={() => {
-                setLocalPattern([]);
-                if (confirmPattern !== null) setConfirmPattern(null);
-              }}
-              className="w-full bg-red-500 text-white px-6 py-3 rounded-2xl font-bold mb-3 hover:bg-red-600"
-            >
-              Clear Pattern
-            </button>
-          )}
-
-          {!isSetup && (
-            <button
-              onClick={() => setCurrentView('preview')}
-              className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold hover:bg-gray-400"
-            >
-              Back to Preview
-            </button>
-          )}
-
-          {isSetup && (
-            <button
-              onClick={() => onSetupComplete?.(null)}
-              className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold hover:bg-gray-400"
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
-    );
+  const setupPasscode = () => {
+    const passcode = prompt('Set your passcode (4-6 digits):', '');
+    if (passcode && /^\d{4,6}$/.test(passcode)) {
+      setMasterPasscode(passcode);
+      alert('Passcode set successfully!');
+    } else {
+      alert('Please enter 4-6 digits');
+    }
   };
 
-  const handleEditorAccess = () => {
-    if (masterPattern === '') {
-      alert('Please set a pattern first. Go to Settings.');
-      return;
+  const verifyPasscode = () => {
+    if (passcodeInput === masterPasscode && masterPasscode !== '') {
+      setIsPasscodeVerified(true);
+      setPasscodeInput('');
+    } else {
+      alert('Wrong passcode');
+      setPasscodeInput('');
     }
-    setCurrentView('editor');
-    setIsPatternVerified(false);
-    setPatternInput([]);
   };
 
-  const handleInboxAccess = () => {
-    if (masterPattern === '') {
-      alert('Please set a pattern first. Go to Settings.');
+  const handleForgotPasscode = () => {
+    if (!profile.accountEmail) {
+      alert('Please set up an account email first in your profile settings');
       return;
     }
-    setCurrentView('inbox');
-    setIsPatternVerified(false);
-    setPatternInput([]);
+    if (!forgotEmail) {
+      alert('Please enter your account email');
+      return;
+    }
+    if (forgotEmail !== profile.accountEmail) {
+      alert('Email does not match your account email');
+      return;
+    }
+    setResetSent(true);
+    setTimeout(() => {
+      alert('Password reset email sent to ' + forgotEmail + '. Check your inbox for reset instructions.');
+      setShowForgotPasscode(false);
+      setForgotEmail('');
+      setResetSent(false);
+    }, 1500);
   };
 
   const generateShareLink = () => {
@@ -436,14 +359,74 @@ const LinksAndDM = () => {
       alert('Please set a username first');
       return;
     }
-    const shareUrl = `https://linksanddms.netlify.app/preview/${profileId}/${profile.username}`;
-    alert('Share link: ' + shareUrl);
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert('Link copied to clipboard!');
-    });
+    const shareUrl = `linksanddms.netlify.app/preview/${profile.username}`;
+    alert('Your shareable link:\n\n' + shareUrl);
+    navigator.clipboard.writeText(shareUrl);
   };
 
+  const PasscodeLockScreen = () => (
+    <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+      <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+        <h2 className="text-3xl font-bold mb-6 text-purple-600">🔒 Access Required</h2>
+        <p className="text-gray-600 mb-6">Enter your passcode</p>
+        <input
+          type="password"
+          value={passcodeInput}
+          onChange={(e) => setPasscodeInput(e.target.value)}
+          onKeyPress={(e) => { if (e.key === 'Enter') verifyPasscode(); }}
+          placeholder="Enter passcode"
+          className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-lg mb-4"
+          maxLength="6"
+        />
+        <button
+          onClick={verifyPasscode}
+          className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3"
+        >
+          Unlock
+        </button>
+        <button
+          onClick={() => setShowForgotPasscode(true)}
+          className="w-full bg-blue-500 text-white px-6 py-3 rounded-2xl font-bold text-lg hover:bg-blue-600 mb-3"
+        >
+          Forgot Passcode?
+        </button>
+        <button
+          onClick={() => setCurrentView('landing')}
+          className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-lg hover:bg-gray-400"
+        >
+          Back
+        </button>
+
+        {showForgotPasscode && (
+          <div className="mt-6 border-t-2 border-gray-300 pt-6">
+            <h3 className="font-bold text-lg mb-4 text-gray-800">Reset Passcode</h3>
+            <input
+              type="email"
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              placeholder="Enter your account email"
+              className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm mb-3"
+            />
+            <button
+              onClick={handleForgotPasscode}
+              disabled={resetSent}
+              className={`w-full px-6 py-3 rounded-2xl font-bold text-sm ${resetSent ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+            >
+              {resetSent ? 'Sending...' : 'Send Reset Email'}
+            </button>
+            <button
+              onClick={() => setShowForgotPasscode(false)}
+              className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold text-sm mt-2 hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // LANDING PAGE
   if (currentView === 'landing') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -451,12 +434,6 @@ const LinksAndDM = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-12">
             <h1 className="heading-lg text-5xl text-white drop-shadow-2xl" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.2)' }}>🔗 Links & DM 💬</h1>
-            <button
-              onClick={handleEditorAccess}
-              className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200"
-            >
-              Get Started Now
-            </button>
           </div>
 
           <div className="text-center mb-20">
@@ -485,44 +462,70 @@ const LinksAndDM = () => {
 
           <div className="bg-white/95 rounded-3xl p-12 max-w-4xl mx-auto shadow-2xl border-4 border-purple-300 mb-12">
             <h2 className="heading-md text-3xl text-purple-600 mb-6 text-center">Trusted by Influencers, Celebrities & Brands 💎</h2>
-            <p className="text-center text-gray-700 font-bold">Join thousands of creators managing their links and DMs like pros</p>
+            <p className="text-center text-gray-700 font-bold mb-8">Join thousands of creators managing their links and DMs like pros</p>
+            <button
+              onClick={() => {
+                setCurrentView('preview');
+                setIsPasscodeVerified(false);
+              }}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-xl hover:shadow-xl transform hover:scale-105 drop-shadow-lg"
+            >
+              Get Started Now 🚀
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  if (currentView === 'preview') {
-    return (
-      <div className={`min-h-screen p-8`} style={{ background: profile.customTheme ? profile.customTheme.background : themes[profile.selectedTheme].gradient }}>
-        <div className="max-w-2xl mx-auto">
-          {/* Navigation */}
-          <div className="flex justify-between items-center mb-8">
+  // PREVIEW PAGE (PUBLIC - for followers/customers)
+  if (currentView === 'preview' && previewUsername) {
+    if (!previewData) {
+      return (
+        <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+          <div className="bg-white rounded-3xl p-10 text-center max-w-md w-full shadow-2xl border-4 border-purple-300">
+            <p className="text-2xl font-bold text-gray-800 mb-6">Profile not found</p>
             <button
-              onClick={() => setCurrentView('landing')}
-              className="bg-white/80 text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg"
+              onClick={() => {
+                setCurrentView('landing');
+                setPreviewUsername(null);
+              }}
+              className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-purple-700"
             >
-              ← Back
-            </button>
-            <button
-              onClick={handleEditorAccess}
-              className="bg-white/80 text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg"
-            >
-              ⚙️ Settings
+              Back to Home
             </button>
           </div>
+        </div>
+      );
+    }
+
+    const data = previewData;
+    const themeGradient = data.customTheme?.background || themes[data.profile?.selectedTheme || 0].gradient;
+
+    return (
+      <div className="min-h-screen p-8" style={{ background: themeGradient }}>
+        <div className="max-w-2xl mx-auto">
+          <button
+            onClick={() => {
+              setCurrentView('landing');
+              setPreviewUsername(null);
+            }}
+            className="bg-white/80 text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg mb-8"
+          >
+            ← Back
+          </button>
 
           {/* Profile Card */}
           <div className="bg-white/90 rounded-3xl p-8 shadow-2xl mb-8 border-4 border-white/50 text-center">
-            {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-purple-300" />}
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">{profile.name}</h1>
-            <p className="text-xl font-bold text-purple-600 mb-4">{profile.businessProfession}</p>
-            <p className="text-gray-700 font-bold text-lg">{profile.bio}</p>
+            {data.profile?.profilePic && <img src={data.profile.profilePic} alt="Profile" className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-purple-300 object-cover" />}
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">{data.profile?.name}</h1>
+            <p className="text-xl font-bold text-purple-600 mb-4">{data.profile?.businessProfession}</p>
+            <p className="text-gray-700 font-bold text-lg">{data.profile?.bio}</p>
           </div>
 
           {/* DM Buttons */}
           <div className="grid grid-cols-2 gap-4 mb-8">
-            {Object.entries(dmButtons).map(([key, btn]) => btn.enabled && (
+            {Object.entries(data.dmButtons || {}).map(([key, btn]) => btn?.enabled && (
               <button
                 key={key}
                 onClick={() => openMessageForm(key)}
@@ -535,144 +538,87 @@ const LinksAndDM = () => {
           </div>
 
           {/* Handles */}
-          <div className="bg-white/90 rounded-2xl p-6 mb-6 shadow-lg border-2 border-white/50">
-            <h3 className="font-bold text-lg mb-4 text-gray-800">📱 Connect</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {categoryButtons.handles.map((h, idx) => h.handle && (
-                <a
-                  key={idx}
-                  href={getSocialMediaUrl(h.platform, h.handle)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg p-3 font-bold text-center transition transform hover:scale-105"
-                  style={{ backgroundColor: h.bgColor, color: h.textColor }}
-                >
-                  {h.platform}
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3 mb-8">
-            {portfolio.enabled && portfolio.url && (
-              <a
-                href={formatUrl(portfolio.url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl p-4 font-bold text-center transition transform hover:scale-105 drop-shadow-lg text-white"
-                style={{ backgroundColor: portfolio.bgColor, color: portfolio.textColor }}
-              >
-                🎨 Portfolio
-              </a>
-            )}
-            {projects.enabled && projects.list.some(p => p.url) && (
-              <a
-                href={projects.list.find(p => p.url)?.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-2xl p-4 font-bold text-center transition transform hover:scale-105 drop-shadow-lg text-white"
-                style={{ backgroundColor: projects.bgColor, color: projects.textColor }}
-              >
-                📁 Latest Projects
-              </a>
-            )}
-          </div>
-
-          {/* Inbox and Editor Buttons */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
-            <button
-              onClick={handleInboxAccess}
-              className="bg-white/90 text-purple-600 px-6 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105 border-2 border-purple-300"
-            >
-              📬 My Inbox
-            </button>
-            <button
-              onClick={generateShareLink}
-              className="bg-white/90 text-purple-600 px-6 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105 border-2 border-purple-300"
-            >
-              🔗 Share Link
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentView === 'inbox') {
-    if (!isPatternVerified) {
-      return <PatternLock onUnlock={() => setIsPatternVerified(true)} />;
-    }
-
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl font-bold text-white drop-shadow-lg">📬 My Inbox</h1>
-            <button
-              onClick={() => setCurrentView('preview')}
-              className="bg-white text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg"
-            >
-              ← Back
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div className="bg-white/90 rounded-2xl p-4 mb-8 shadow-lg">
-            <div className="flex flex-wrap gap-2">
-              {['all', 'priority', 'meeting', 'collab', 'connect', 'fans'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setInboxFilter(f)}
-                  className={`px-4 py-2 rounded-full font-bold transition ${
-                    inboxFilter === f
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                  }`}
-                >
-                  {f.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="space-y-4">
-            {loadingMessages ? (
-              <p className="text-center text-white font-bold text-lg">Loading messages...</p>
-            ) : sortedMessages.length === 0 ? (
-              <div className="bg-white/90 rounded-2xl p-8 text-center shadow-lg">
-                <p className="text-2xl font-bold text-gray-800">📭 No messages yet</p>
+          {data.categoryButtons?.handles?.some(h => h.handle) && (
+            <div className="bg-white/90 rounded-2xl p-6 mb-6 shadow-lg border-2 border-white/50">
+              <h3 className="font-bold text-lg mb-4 text-gray-800">📱 Connect</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {data.categoryButtons.handles.map((h, idx) => h.handle && (
+                  <a
+                    key={idx}
+                    href={getSocialMediaUrl(h.platform, h.handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg p-3 font-bold text-center transition transform hover:scale-105"
+                    style={{ backgroundColor: h.bgColor, color: h.textColor }}
+                  >
+                    {h.platform}
+                  </a>
+                ))}
               </div>
-            ) : (
-              sortedMessages.map((msg, idx) => (
-                <div key={idx} className="bg-white/90 rounded-2xl p-6 shadow-lg border-l-4 border-purple-600">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800">{msg.name} {msg.senderTag}</h3>
-                      <p className="text-sm text-gray-600">{msg.contact}</p>
-                    </div>
-                    <button
-                      onClick={() => toggleStar(idx)}
-                      className="text-2xl cursor-pointer transition transform hover:scale-125"
-                    >
-                      {msg.starred ? '⭐' : '☆'}
-                    </button>
-                  </div>
-                  <p className="text-gray-700 font-bold mb-2">{msg.message}</p>
-                  <p className="text-xs text-gray-500">{msg.messageType} • {new Date(msg.timestamp).toLocaleDateString()}</p>
-                </div>
-              ))
-            )}
+            </div>
+          )}
+
+          {/* Portfolio */}
+          {data.portfolio?.enabled && data.portfolio?.url && (
+            <a
+              href={formatUrl(data.portfolio.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl p-4 font-bold text-center transition transform hover:scale-105 drop-shadow-lg text-white mb-3"
+              style={{ backgroundColor: data.portfolio.bgColor, color: data.portfolio.textColor }}
+            >
+              🎨 Portfolio
+            </a>
+          )}
+
+          {/* Projects */}
+          {data.projects?.enabled && data.projects?.list?.some(p => p.url) && (
+            <a
+              href={data.projects.list.find(p => p.url)?.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl p-4 font-bold text-center transition transform hover:scale-105 drop-shadow-lg text-white mb-3"
+              style={{ backgroundColor: data.projects.bgColor, color: data.projects.textColor }}
+            >
+              📁 Latest Projects
+            </a>
+          )}
+
+          {/* Powered by */}
+          <div className="text-center mt-12">
+            <p className="text-white font-bold drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Powered by Links & DM 💎</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (currentView === 'editor') {
-    if (!isPatternVerified) {
-      return <PatternLock onUnlock={() => setIsPatternVerified(true)} />;
+  // EDITOR PAGE (LOCKED)
+  if (currentView === 'preview' && !previewUsername) {
+    if (!isPasscodeVerified) {
+      if (masterPasscode === '') {
+        return (
+          <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+            <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+              <h2 className="text-3xl font-bold mb-6 text-purple-600">🔐 Set Up Security</h2>
+              <p className="text-gray-600 mb-6">Create a 4-6 digit passcode to protect your profile</p>
+              <button
+                onClick={setupPasscode}
+                className="w-full bg-purple-600 text-white px-6 py-4 rounded-2xl font-bold text-lg hover:bg-purple-700 mb-3"
+              >
+                Set Passcode
+              </button>
+              <button
+                onClick={() => setCurrentView('landing')}
+                className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold hover:bg-gray-400"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        );
+      }
+      return <PasscodeLockScreen />;
     }
 
     return (
@@ -681,20 +627,16 @@ const LinksAndDM = () => {
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-4xl font-bold text-white drop-shadow-lg">✏️ Editor</h1>
             <button
-              onClick={() => { saveUserData(); setCurrentView('preview'); }}
+              onClick={() => {
+                saveUserData();
+                setCurrentView('landing');
+                setIsPasscodeVerified(false);
+              }}
               className="bg-white text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg"
             >
-              ✓ Save & Back
+              ✓ Save & Exit
             </button>
           </div>
-
-          {/* Settings Button */}
-          <button
-            onClick={() => setCurrentView('settings')}
-            className="w-full bg-yellow-400 text-gray-800 px-6 py-4 rounded-2xl font-bold text-lg hover:shadow-lg mb-8 border-2 border-yellow-600"
-          >
-            ⚙️ Security Settings (Pattern Lock)
-          </button>
 
           <div className="space-y-8">
             {/* Profile Section */}
@@ -707,6 +649,29 @@ const LinksAndDM = () => {
                   type="text"
                   value={profile.name}
                   onChange={(e) => handleProfileChange('name', e.target.value)}
+                  className="w-full bg-gray-100 border-2 border-purple-300 rounded-xl p-3 font-bold"
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block font-bold text-lg mb-2 text-gray-800">Username (for sharing)</label>
+                <input
+                  type="text"
+                  value={profile.username}
+                  onChange={(e) => handleProfileChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                  placeholder="yourname"
+                  className="w-full bg-gray-100 border-2 border-purple-300 rounded-xl p-3 font-bold"
+                />
+                <p className="text-xs text-gray-600 mt-2">Your shareable link: linksanddms.netlify.app/preview/{profile.username}</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block font-bold text-lg mb-2 text-gray-800">Account Email (for recovery)</label>
+                <input
+                  type="email"
+                  value={profile.accountEmail}
+                  onChange={(e) => handleProfileChange('accountEmail', e.target.value)}
+                  placeholder="your@email.com"
                   className="w-full bg-gray-100 border-2 border-purple-300 rounded-xl p-3 font-bold"
                 />
               </div>
@@ -731,17 +696,6 @@ const LinksAndDM = () => {
               </div>
 
               <div className="mb-6">
-                <label className="block font-bold text-lg mb-2 text-gray-800">Username (for sharing)</label>
-                <input
-                  type="text"
-                  value={profile.username}
-                  onChange={(e) => handleProfileChange('username', e.target.value)}
-                  placeholder="yourname"
-                  className="w-full bg-gray-100 border-2 border-purple-300 rounded-xl p-3 font-bold"
-                />
-              </div>
-
-              <div className="mb-6">
                 <label className="block font-bold text-lg mb-2 text-gray-800">Profile Picture</label>
                 <input
                   type="file"
@@ -749,8 +703,25 @@ const LinksAndDM = () => {
                   onChange={handleProfilePicUpload}
                   className="w-full"
                 />
-                {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-24 h-24 rounded-lg mt-4 border-2 border-purple-300" />}
+                {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-24 h-24 rounded-lg mt-4 border-2 border-purple-300 object-cover" />}
               </div>
+
+              <button
+                onClick={() => {
+                  const newPasscode = prompt('Set new passcode (4-6 digits) or leave blank to keep current:', '');
+                  if (newPasscode === null) return;
+                  if (newPasscode === '') return;
+                  if (!/^\d{4,6}$/.test(newPasscode)) {
+                    alert('Please enter 4-6 digits');
+                    return;
+                  }
+                  setMasterPasscode(newPasscode);
+                  alert('Passcode updated!');
+                }}
+                className="w-full bg-red-500 text-white px-6 py-3 rounded-2xl font-bold hover:bg-red-600"
+              >
+                🔐 Change Passcode
+              </button>
             </div>
 
             {/* DM Buttons */}
@@ -782,24 +753,26 @@ const LinksAndDM = () => {
                           value={btn.calendarLink}
                           onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...btn, calendarLink: e.target.value } }))}
                           className="w-full bg-gray-100 border-2 border-purple-300 rounded-lg p-2 font-bold mb-3"
-                          placeholder="Calendar Link (Calendly, Zoom, etc)"
+                          placeholder="Calendar Link"
                         />
                       )}
                       <div className="flex gap-4">
                         <div className="flex-1">
                           <label className="block font-bold text-sm mb-2 text-gray-800">Background</label>
-                          <button
-                            onClick={() => setShowColorModal(key)}
-                            className="w-full h-12 rounded-lg border-2 border-gray-300 cursor-pointer"
-                            style={{ backgroundColor: btn.bgColor }}
+                          <input
+                            type="color"
+                            value={btn.bgColor}
+                            onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...btn, bgColor: e.target.value } }))}
+                            className="w-full h-10 cursor-pointer rounded-lg"
                           />
                         </div>
                         <div className="flex-1">
                           <label className="block font-bold text-sm mb-2 text-gray-800">Text</label>
-                          <button
-                            onClick={() => setShowColorModal(`${key}-text`)}
-                            className="w-full h-12 rounded-lg border-2 border-gray-300 cursor-pointer"
-                            style={{ backgroundColor: btn.textColor }}
+                          <input
+                            type="color"
+                            value={btn.textColor}
+                            onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...btn, textColor: e.target.value } }))}
+                            className="w-full h-10 cursor-pointer rounded-lg"
                           />
                         </div>
                       </div>
@@ -850,7 +823,7 @@ const LinksAndDM = () => {
               )}
             </div>
 
-            {/* Email Addresses */}
+            {/* Email */}
             <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
               <h2 className="text-3xl font-bold text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📧 Email Addresses</h2>
               <div className="space-y-2 mb-4">
@@ -884,7 +857,7 @@ const LinksAndDM = () => {
               )}
             </div>
 
-            {/* Contact Numbers */}
+            {/* Contact */}
             <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
               <h2 className="text-3xl font-bold text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📱 Contact Numbers</h2>
               <div className="space-y-2 mb-4">
@@ -918,7 +891,7 @@ const LinksAndDM = () => {
               )}
             </div>
 
-            {/* Websites */}
+            {/* Website */}
             <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
               <h2 className="text-3xl font-bold text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🌍 Website / Store</h2>
               <div className="space-y-2 mb-4">
@@ -970,7 +943,7 @@ const LinksAndDM = () => {
                   value={portfolio.url}
                   onChange={(e) => setPortfolio(prev => ({ ...prev, url: e.target.value }))}
                   placeholder="https://yourportfolio.com"
-                  className="w-full bg-white/95 border-0 rounded-xl p-3 font-bold text-sm"
+                  className="w-full bg-white/95 border-0 rounded-xl p-3 font-bold text-sm mb-3"
                 />
               )}
             </div>
@@ -1050,10 +1023,10 @@ const LinksAndDM = () => {
                   onClick={() => setShowThemeColorModal(true)}
                   className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-gray-800 px-6 py-3 rounded-full font-bold hover:shadow-lg"
                 >
-                  🎨 Colors
+                  🎨 Custom Colors
                 </button>
               </div>
-              <div className="grid grid-cols-3 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
                 {themes.map((t, idx) => (
                   <button
                     key={idx}
@@ -1108,48 +1081,38 @@ const LinksAndDM = () => {
                 </button>
               )}
             </div>
+
+            {/* Generate Share Link */}
+            <button
+              onClick={() => {
+                if (!profile.username) {
+                  alert('Please set a username first');
+                  return;
+                }
+                saveUserData();
+                const shareUrl = `linksanddms.netlify.app/preview/${profile.username}`;
+                alert('Your shareable link:\n\n' + shareUrl + '\n\nCopied to clipboard!');
+                navigator.clipboard.writeText(shareUrl);
+              }}
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transform hover:scale-105"
+            >
+              🔗 Generate & Copy Share Link
+            </button>
           </div>
         </div>
 
-        {/* Color Modal */}
-        {showColorModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6 text-center text-purple-600">🎨 Pick Color</h2>
-              <input
-                type="color"
-                onChange={(e) => {
-                  if (showColorModal.includes('-text')) {
-                    const key = showColorModal.replace('-text', '');
-                    setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], textColor: e.target.value } }));
-                  } else {
-                    setDmButtons(prev => ({ ...prev, [showColorModal]: { ...prev[showColorModal], bgColor: e.target.value } }));
-                  }
-                }}
-                className="w-full h-32 cursor-pointer mb-4"
-              />
-              <button
-                onClick={() => setShowColorModal(null)}
-                className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-purple-700"
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Theme Color Modal */}
         {showThemeColorModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl">
-              <h2 className="text-2xl font-bold mb-6 text-center text-purple-600">🎨 Custom Theme</h2>
+              <h2 className="text-2xl font-bold mb-6 text-center text-purple-600">🎨 Custom Theme Colors</h2>
               <div className="mb-6">
                 <label className="block font-bold text-gray-800 mb-2">Background Color</label>
                 <input
                   type="color"
                   value={customThemeColors.background}
                   onChange={(e) => setCustomThemeColors(prev => ({ ...prev, background: e.target.value }))}
-                  className="w-full h-12 cursor-pointer"
+                  className="w-full h-12 cursor-pointer rounded-lg"
                 />
               </div>
               <div className="mb-6">
@@ -1158,8 +1121,14 @@ const LinksAndDM = () => {
                   type="color"
                   value={customThemeColors.text}
                   onChange={(e) => setCustomThemeColors(prev => ({ ...prev, text: e.target.value }))}
-                  className="w-full h-12 cursor-pointer"
+                  className="w-full h-12 cursor-pointer rounded-lg"
                 />
+              </div>
+              <div
+                className="mb-6 h-24 rounded-lg border-2 border-purple-300 flex items-center justify-center"
+                style={{ backgroundColor: customThemeColors.background, color: customThemeColors.text }}
+              >
+                <p className="font-bold text-lg">Preview</p>
               </div>
               <button
                 onClick={() => {
@@ -1183,103 +1152,91 @@ const LinksAndDM = () => {
     );
   }
 
-  if (currentView === 'settings') {
+  // INBOX PAGE (LOCKED)
+  if (currentView === 'inbox') {
+    if (!isPasscodeVerified) {
+      if (masterPasscode === '') {
+        return (
+          <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8 flex items-center justify-center">
+            <div className="bg-white rounded-3xl p-10 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 text-center">
+              <p className="text-2xl font-bold text-gray-800">Please set up your passcode first in Editor</p>
+              <button
+                onClick={() => setCurrentView('landing')}
+                className="w-full bg-purple-600 text-white px-6 py-4 rounded-2xl font-bold mt-6 hover:bg-purple-700"
+              >
+                Back to Home
+              </button>
+            </div>
+          </div>
+        );
+      }
+      return <PasscodeLockScreen />;
+    }
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl font-bold text-white drop-shadow-lg">⚙️ Security Settings</h1>
+            <h1 className="text-4xl font-bold text-white drop-shadow-lg">📬 My Inbox</h1>
             <button
-              onClick={() => setCurrentView('editor')}
+              onClick={() => {
+                setCurrentView('landing');
+                setIsPasscodeVerified(false);
+              }}
               className="bg-white text-purple-600 px-6 py-3 rounded-full font-bold hover:shadow-lg"
             >
               ← Back
             </button>
           </div>
 
-          <div className="bg-white/90 rounded-3xl p-8 shadow-xl border-4 border-purple-300">
-            <h2 className="text-2xl font-bold text-purple-600 mb-6 text-center">🔒 Pattern Lock Setup</h2>
-
-            {masterPattern === '' ? (
-              <div className="text-center">
-                <p className="text-gray-800 font-bold mb-6 text-lg">Set up your pattern lock to secure your editor and inbox</p>
-                <button
-                  onClick={() => {
-                    const newPattern = '';
-                    setCurrentView('patternSetup');
-                  }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  🔐 Set Pattern Lock
-                </button>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-green-600 font-bold mb-6 text-lg">✓ Pattern Lock is active</p>
-                <button
-                  onClick={() => {
-                    if (window.confirm('Are you sure you want to reset your pattern lock?')) {
-                      setMasterPattern('');
-                      alert('Pattern reset. Set a new one to continue.');
-                    }
-                  }}
-                  className="bg-red-600 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl"
-                >
-                  🔓 Reset Pattern Lock
-                </button>
-                <button
-                  onClick={() => setShowForgotPattern(true)}
-                  className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold mt-4 hover:bg-gray-400"
-                >
-                  Forgot Pattern?
-                </button>
-              </div>
-            )}
+          {/* Filters */}
+          <div className="bg-white/90 rounded-2xl p-4 mb-8 shadow-lg flex flex-wrap gap-2">
+            {['all', 'priority', 'meeting', 'collab', 'connect', 'fans'].map((f) => (
+              <button
+                key={f}
+                onClick={() => setInboxFilter(f)}
+                className={`px-4 py-2 rounded-full font-bold transition ${
+                  inboxFilter === f
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                }`}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
           </div>
 
-          {showForgotPattern && (
-            <div className="mt-8 bg-white/90 rounded-3xl p-8 shadow-xl border-4 border-purple-300">
-              <h2 className="text-2xl font-bold text-purple-600 mb-4">Forgot Pattern?</h2>
-              <p className="text-gray-800 font-bold mb-4">This feature is for account recovery. Enter a recovery email:</p>
-              <input
-                type="email"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                placeholder="recovery@email.com"
-                className="w-full bg-gray-100 border-2 border-purple-300 rounded-lg p-3 font-bold mb-4"
-              />
-              <button
-                onClick={() => {
-                  alert('Recovery email saved. Check your email for recovery instructions.');
-                  setShowForgotPattern(false);
-                  setForgotEmail('');
-                }}
-                className="w-full bg-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-purple-700 mb-3"
-              >
-                Send Recovery Link
-              </button>
-              <button
-                onClick={() => setShowForgotPattern(false)}
-                className="w-full bg-gray-300 text-gray-800 px-6 py-3 rounded-2xl font-bold hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
+          {/* Messages */}
+          <div className="space-y-4">
+            {loadingMessages ? (
+              <p className="text-center text-white font-bold text-lg">Loading messages...</p>
+            ) : sortedMessages.length === 0 ? (
+              <div className="bg-white/90 rounded-2xl p-8 text-center shadow-lg">
+                <p className="text-2xl font-bold text-gray-800">📭 No messages yet</p>
+              </div>
+            ) : (
+              sortedMessages.map((msg, idx) => (
+                <div key={idx} className="bg-white/90 rounded-2xl p-6 shadow-lg border-l-4 border-purple-600">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-800">{msg.name} {msg.senderTag}</h3>
+                      <p className="text-sm text-gray-600">{msg.contact}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleStar(idx)}
+                      className="text-2xl cursor-pointer transition transform hover:scale-125"
+                    >
+                      {msg.starred ? '⭐' : '☆'}
+                    </button>
+                  </div>
+                  <p className="text-gray-700 font-bold mb-2">{msg.message}</p>
+                  <p className="text-xs text-gray-500">{msg.messageType} • {new Date(msg.timestamp).toLocaleDateString()}</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
-    );
-  }
-
-  if (currentView === 'patternSetup') {
-    return (
-      <PatternLock
-        isSetup={true}
-        onSetupComplete={(pattern) => {
-          saveUserData();
-          setCurrentView('settings');
-        }}
-      />
     );
   }
 
