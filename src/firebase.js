@@ -2,6 +2,10 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
+// Firebase configuration
+// NOTE: These API keys are PUBLIC and SAFE for web apps
+// Firebase uses these for client identification, not authentication
+// See: https://firebase.google.com/docs/projects/api-keys
 const firebaseConfig = {
   apiKey: "AIzaSyAAFqbEIL3TOAcFmsxoqltJfrtfE2sOXVs",
   authDomain: "links-dm-pro.firebaseapp.com",
