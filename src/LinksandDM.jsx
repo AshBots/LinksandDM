@@ -161,6 +161,7 @@ const LinksAndDM = () => {
         setProjects(data.projects || projects);
         setPriorityContacts(data.priorityContacts || priorityContacts);
         setButtonColors(data.buttonColors || buttonColors);
+        setProfileId(querySnapshot.docs[0].id);
       }
       setLoadingProfile(false);
     } catch (error) {
@@ -396,29 +397,31 @@ const LinksAndDM = () => {
     return url.startsWith('http') ? url : `https://${url}`;
   };
 
+  const getSocialUrl = (platform, handle) => {
+    const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
+    const urls = {
+      'Instagram': `https://instagram.com/${cleanHandle}`,
+      'TikTok': `https://tiktok.com/@${cleanHandle}`,
+      'Twitter': `https://twitter.com/${cleanHandle}`,
+      'X': `https://twitter.com/${cleanHandle}`,
+      'Facebook': `https://facebook.com/${cleanHandle}`,
+      'LinkedIn': `https://linkedin.com/in/${cleanHandle}`,
+      'YouTube': `https://youtube.com/@${cleanHandle}`,
+      'Pinterest': `https://pinterest.com/${cleanHandle}`,
+      'Snapchat': `https://snapchat.com/add/${cleanHandle}`,
+    };
+    return urls[platform] || `https://${cleanHandle}`;
+  };
+
   // AUTH MODAL
   const AuthModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
         <h2 className="text-3xl font-bold text-purple-600 mb-6">{isLogin ? '🔓 Login' : '🎉 Sign Up'}</h2>
-        {authError && <p className="text-red-500 mb-4">{authError}</p>}
+        {authError && <p className="text-red-500 mb-4 text-sm">{authError}</p>}
         <form onSubmit={handleAuth} className="space-y-4">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full p-3 border-2 border-purple-300 rounded-xl"
-            required
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="w-full p-3 border-2 border-purple-300 rounded-xl"
-            required
-          />
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className="w-full p-3 border-2 border-purple-300 rounded-xl" required />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password (min 6 characters)" className="w-full p-3 border-2 border-purple-300 rounded-xl" required />
           <button type="submit" className="w-full bg-purple-600 text-white p-3 rounded-xl font-bold hover:bg-purple-700">
             {isLogin ? 'Login' : 'Sign Up'}
           </button>
@@ -436,7 +439,7 @@ const LinksAndDM = () => {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
         <h2 className="text-3xl font-bold text-purple-600 mb-4">🔗 Your Share Link</h2>
-        <div className="bg-gray-100 p-4 rounded-xl mb-4 break-all">{shareLink}</div>
+        <div className="bg-gray-100 p-4 rounded-xl mb-4 break-all text-sm">{shareLink}</div>
         <button onClick={copyToClipboard} className="w-full bg-purple-600 text-white p-3 rounded-xl font-bold hover:bg-purple-700 mb-2">
           {copySuccess ? '✅ Copied!' : '📋 Copy Link'}
         </button>
@@ -448,12 +451,12 @@ const LinksAndDM = () => {
   // COLOR SETTINGS MODAL
   const ColorSettingsModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
+      <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8 max-h-[80vh] overflow-y-auto">
         <h2 className="text-3xl font-bold text-purple-600 mb-6">🎨 Custom Colors</h2>
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-6">
           {Object.keys(buttonColors).map(key => (
             <div key={key} className="space-y-2">
-              <h3 className="font-bold capitalize">{key.replace(/([A-Z])/g, ' $1')}</h3>
+              <h3 className="font-bold capitalize text-lg">{key.replace(/([A-Z])/g, ' $1')}</h3>
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="text-sm text-gray-600">Background</label>
@@ -484,11 +487,11 @@ const LinksAndDM = () => {
         <div className="space-y-4">
           <div>
             <label className="font-bold">Start Color</label>
-            <input type="color" value={profile.customTheme.start} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, start: e.target.value } }))} className="w-full h-12 rounded cursor-pointer" />
+            <input type="color" value={profile.customTheme.start} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, start: e.target.value } }))} className="w-full h-12 rounded cursor-pointer mt-2" />
           </div>
           <div>
             <label className="font-bold">End Color</label>
-            <input type="color" value={profile.customTheme.end} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, end: e.target.value } }))} className="w-full h-12 rounded cursor-pointer" />
+            <input type="color" value={profile.customTheme.end} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, end: e.target.value } }))} className="w-full h-12 rounded cursor-pointer mt-2" />
           </div>
           <div style={{ background: `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` }} className="h-24 rounded-xl"></div>
         </div>
@@ -506,6 +509,11 @@ const LinksAndDM = () => {
       <div className="min-h-screen bg-gradient-to-b from-green-400 via-blue-300 to-purple-400 p-4 overflow-y-auto relative">
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }`}</style>
         
+        {/* Top Left Logo */}
+        <div className="absolute top-4 left-4">
+          <h1 className="text-2xl font-bold text-white drop-shadow-lg">🔗 Links&Dm</h1>
+        </div>
+
         {/* Top Right Button */}
         <div className="absolute top-4 right-4">
           <button onClick={() => { user ? setCurrentView('editor') : setShowAuth(true); }} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200">
@@ -513,7 +521,7 @@ const LinksAndDM = () => {
           </button>
         </div>
 
-        <div className="max-w-4xl mx-auto space-y-8 pb-8 pt-16">
+        <div className="max-w-4xl mx-auto space-y-8 pb-8 pt-20">
           <div className="bg-gradient-to-br from-green-500 to-teal-600 rounded-3xl p-8 text-center shadow-xl border-4 border-white/20">
             <div className="text-6xl mb-4">📱</div>
             <h2 className="heading-xl text-4xl text-white mb-3">Contact Central</h2>
@@ -521,10 +529,17 @@ const LinksAndDM = () => {
           </div>
 
           <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 rounded-3xl p-12 text-center shadow-xl border-4 border-white/20">
-            <h1 className="heading-xl text-5xl text-white mb-4 drop-shadow-lg">Transform Your Link-in-Bio Today 🚀</h1>
-            <button onClick={() => { user ? setCurrentView('editor') : setShowAuth(true); }} className="bg-white text-purple-600 px-12 py-4 rounded-2xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 mb-6 drop-shadow-lg border-4 border-purple-200">
+            <h1 className="heading-xl text-5xl text-white mb-6 drop-shadow-lg">Transform Your Link-in-Bio Today 🚀</h1>
+            
+            <button onClick={() => { user ? setCurrentView('editor') : setShowAuth(true); }} className="bg-white text-purple-600 px-12 py-4 rounded-2xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 mb-4 drop-shadow-lg border-4 border-purple-200">
               Get Started Now
             </button>
+
+            <div className="mt-4">
+              <button onClick={() => setCurrentView('preview')} className="bg-white/90 text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105 border-4 border-blue-200">
+                See Demo
+              </button>
+            </div>
           </div>
 
           <div className="text-center">
@@ -550,18 +565,10 @@ const LinksAndDM = () => {
         
         <div className="max-w-4xl mx-auto space-y-6 pb-8">
           <div className="flex gap-3 mb-6 flex-wrap">
-            <button onClick={() => { setCurrentView('landing'); }} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition">
-              ← Landing
-            </button>
-            <button onClick={() => setCurrentView('preview')} className="bg-white text-blue-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition">
-              👁️ Preview
-            </button>
-            <button onClick={() => setCurrentView('inbox')} className="bg-white text-green-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition">
-              📬 Inbox
-            </button>
-            <button onClick={handleSignOut} className="bg-red-500 text-white px-6 py-3 rounded-2xl font-bold hover:shadow-xl transition">
-              Logout
-            </button>
+            <button onClick={() => setCurrentView('landing')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl">← Landing</button>
+            <button onClick={() => setCurrentView('preview')} className="bg-white text-blue-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl">👁️ Preview</button>
+            <button onClick={() => setCurrentView('inbox')} className="bg-white text-green-600 px-6 py-3 rounded-2xl font-bold hover:shadow-xl">📬 Inbox</button>
+            <button onClick={handleSignOut} className="bg-red-500 text-white px-6 py-3 rounded-2xl font-bold hover:shadow-xl">Logout</button>
           </div>
 
           {/* Profile Section */}
@@ -581,17 +588,19 @@ const LinksAndDM = () => {
 
               <div>
                 <label className="font-bold text-lg">Bio</label>
-                <textarea value={profile.bio} onChange={(e) => handleProfileChange('bio', e.target.value)} className="w-full p-3 border-2 border-gray-300 rounded-xl mt-1 h-24" />
+                <textarea value={profile.bio} onChange={(e) => handleProfileChange('bio', e.target.value)} maxLength="200" className="w-full p-3 border-2 border-gray-300 rounded-xl mt-1 h-24" />
+                <p className="text-sm text-gray-500 mt-1">{profile.bio.length}/200 characters</p>
               </div>
 
               <div>
                 <label className="font-bold text-lg">Profile Picture</label>
                 <input type="file" accept="image/*" onChange={handleProfilePicUpload} className="w-full p-3 border-2 border-gray-300 rounded-xl mt-1" />
-                {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-24 h-24 rounded-full mt-2" />}
+                {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-24 h-24 rounded-full mt-2 border-4 border-purple-300" />}
               </div>
 
               <div className="bg-blue-100 border-4 border-blue-400 rounded-2xl p-6">
                 <label className="font-bold text-lg flex items-center gap-2">📱 Username</label>
+                <p className="text-sm text-gray-600 mb-2">Choose a unique username for your link</p>
                 <input type="text" value={profile.username} onChange={(e) => handleProfileChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))} placeholder="yourname" className="w-full p-3 border-2 border-blue-300 rounded-xl mt-2 font-bold" />
                 <button onClick={generateShareLink} className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-2xl font-bold text-lg mt-3 hover:shadow-xl transition">
                   🔗 Generate Share Link
@@ -604,9 +613,7 @@ const LinksAndDM = () => {
           <div className="bg-gradient-to-br from-pink-500 to-red-500 rounded-3xl p-8 shadow-xl border-4 border-white/20">
             <div className="flex justify-between items-center mb-6">
               <h2 className="heading-md text-3xl text-white">📬 Smart DM Buttons</h2>
-              <button onClick={() => setShowColorSettings(true)} className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold hover:shadow-lg">
-                🎨 Colors
-              </button>
+              <button onClick={() => setShowColorSettings(true)} className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold hover:shadow-lg">🎨 Colors</button>
             </div>
 
             <div className="space-y-4">
@@ -618,7 +625,7 @@ const LinksAndDM = () => {
                     <input type="text" value={button.label} onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], label: e.target.value } }))} className="flex-1 font-bold p-2 border-2 border-gray-300 rounded-lg" />
                   </div>
                   {key === 'bookMeeting' && button.enabled && (
-                    <input type="url" value={button.calendarLink} onChange={(e) => setDmButtons(prev => ({ ...prev, bookMeeting: { ...prev.bookMeeting, calendarLink: e.target.value } }))} placeholder="Calendly, Zoom, etc." className="w-full p-2 border-2 border-gray-300 rounded-lg text-sm" />
+                    <input type="url" value={button.calendarLink} onChange={(e) => setDmButtons(prev => ({ ...prev, bookMeeting: { ...prev.bookMeeting, calendarLink: e.target.value } }))} placeholder="Calendly, Zoom, etc." className="w-full p-2 border-2 border-gray-300 rounded-lg text-sm mt-2" />
                   )}
                 </div>
               ))}
@@ -628,7 +635,7 @@ const LinksAndDM = () => {
           {/* Charity Links */}
           {dmButtons.supportCause.enabled && (
             <div className="bg-gradient-to-br from-pink-500 to-pink-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-              <h2 className="heading-md text-3xl text-white mb-6">❤️ Charity Links</h2>
+              <h2 className="heading-md text-3xl text-white mb-6">❤️ Charity Links (Up to 5)</h2>
               <div className="space-y-3">
                 {charityLinks.map((charity, idx) => (
                   <div key={idx} className="flex gap-2">
@@ -648,12 +655,12 @@ const LinksAndDM = () => {
 
           {/* Social Handles */}
           <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-6">🔗 Social Handles</h2>
+            <h2 className="heading-md text-3xl text-white mb-6">🔗 @Handles (Instagram, TikTok, X, etc.)</h2>
             <div className="space-y-2 mb-4">
               {categoryButtons.handles.map((h, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="text" value={h.platform} onChange={(e) => handleCategoryChange('handles', idx, 'platform', e.target.value)} placeholder="Instagram" className="w-24 p-2 rounded-lg font-bold text-xs" />
-                  <input type="text" value={h.handle} onChange={(e) => handleCategoryChange('handles', idx, 'handle', e.target.value)} placeholder="@yourhandle" className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                  <input type="text" value={h.platform} onChange={(e) => handleCategoryChange('handles', idx, 'platform', e.target.value)} placeholder="Instagram" className="w-32 p-2 rounded-lg font-bold text-sm" />
+                  <input type="text" value={h.handle} onChange={(e) => handleCategoryChange('handles', idx, 'handle', e.target.value)} placeholder="@yourhandle" className="flex-1 p-2 rounded-lg font-bold text-sm" />
                   {categoryButtons.handles.length > 1 && (
                     <button onClick={() => handleCategoryRemove('handles', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                   )}
@@ -667,11 +674,11 @@ const LinksAndDM = () => {
 
           {/* Email */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-6">📧 Email Addresses</h2>
+            <h2 className="heading-md text-3xl text-white mb-6">📧 Email (Up to 5)</h2>
             <div className="space-y-2 mb-4">
               {categoryButtons.email.map((e, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="email" value={e.email} onChange={(ev) => handleCategoryChange('email', idx, 'email', ev.target.value)} placeholder="your@email.com" className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                  <input type="email" value={e.email} onChange={(ev) => handleCategoryChange('email', idx, 'email', ev.target.value)} placeholder="your@email.com" className="flex-1 p-2 rounded-lg font-bold text-sm" />
                   {categoryButtons.email.length > 1 && (
                     <button onClick={() => handleCategoryRemove('email', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                   )}
@@ -685,11 +692,11 @@ const LinksAndDM = () => {
 
           {/* Contact */}
           <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-6">📱 Contact Numbers</h2>
+            <h2 className="heading-md text-3xl text-white mb-6">📱 Contact (Up to 5)</h2>
             <div className="space-y-2 mb-4">
               {categoryButtons.contact.map((c, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="tel" value={c.phone} onChange={(e) => handleCategoryChange('contact', idx, 'phone', e.target.value)} placeholder="+1 (555) 123-4567" className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                  <input type="tel" value={c.phone} onChange={(e) => handleCategoryChange('contact', idx, 'phone', e.target.value)} placeholder="+1 (555) 123-4567" className="flex-1 p-2 rounded-lg font-bold text-sm" />
                   {categoryButtons.contact.length > 1 && (
                     <button onClick={() => handleCategoryRemove('contact', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                   )}
@@ -703,11 +710,11 @@ const LinksAndDM = () => {
 
           {/* Website */}
           <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-6">🌍 Website / Store</h2>
+            <h2 className="heading-md text-3xl text-white mb-6">🌍 Website / Store (Up to 5)</h2>
             <div className="space-y-2 mb-4">
               {categoryButtons.website.map((w, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="url" value={w.url} onChange={(e) => handleCategoryChange('website', idx, 'url', e.target.value)} placeholder="https://yourwebsite.com" className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                  <input type="url" value={w.url} onChange={(e) => handleCategoryChange('website', idx, 'url', e.target.value)} placeholder="https://yourwebsite.com" className="flex-1 p-2 rounded-lg font-bold text-sm" />
                   {categoryButtons.website.length > 1 && (
                     <button onClick={() => handleCategoryRemove('website', idx)} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                   )}
@@ -733,7 +740,7 @@ const LinksAndDM = () => {
 
           {/* Projects */}
           <div className="bg-gradient-to-br from-orange-500 to-yellow-600 rounded-3xl p-8 shadow-xl border-4 border-white/20">
-            <h2 className="heading-md text-3xl text-white mb-6">📁 Latest Projects</h2>
+            <h2 className="heading-md text-3xl text-white mb-6">📁 Projects (Up to 5)</h2>
             <div className="flex items-center gap-3 bg-white/95 rounded-xl px-4 py-3 mb-4">
               <input type="checkbox" checked={projects.enabled} onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7" />
               <label className="font-bold text-lg flex-1">Enable Projects</label>
@@ -743,8 +750,8 @@ const LinksAndDM = () => {
                 <div className="space-y-2 mb-4">
                   {projects.list.map((proj, idx) => (
                     <div key={idx} className="flex gap-2">
-                      <input type="text" value={proj.title} onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="Title" className="flex-1 p-2 rounded-lg font-bold text-xs" />
-                      <input type="url" value={proj.url} onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="https://..." className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                      <input type="text" value={proj.title} onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="Project Title" className="flex-1 p-2 rounded-lg font-bold text-sm" />
+                      <input type="url" value={proj.url} onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }} placeholder="https://..." className="flex-1 p-2 rounded-lg font-bold text-sm" />
                       {projects.list.length > 1 && (
                         <button onClick={() => { setProjects(prev => ({ ...prev, list: prev.list.filter((_, i) => i !== idx) })); }} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                       )}
@@ -762,13 +769,11 @@ const LinksAndDM = () => {
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="heading-md text-3xl text-purple-600">🎨 Choose Theme</h2>
-              <button onClick={() => setShowCustomTheme(true)} className="bg-purple-600 text-white px-4 py-2 rounded-xl font-bold hover:shadow-lg">
-                ✨ Custom
-              </button>
+              <button onClick={() => setShowCustomTheme(true)} className="bg-purple-600 text-white px-4 py-2 rounded-xl font-bold hover:shadow-lg">✨ Custom</button>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {themes.map((t, idx) => (
-                <button key={idx} onClick={() => handleProfileChange('selectedTheme', idx)} className={`h-24 rounded-2xl font-bold text-white text-xs ${profile.selectedTheme === idx ? 'ring-4 ring-purple-600 ring-offset-2 scale-110' : 'ring-2 ring-gray-300 hover:scale-105'}`} style={{ background: idx === 12 ? `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` : t.gradient }} title={t.name}>
+                <button key={idx} onClick={() => handleProfileChange('selectedTheme', idx)} className={`h-24 rounded-2xl font-bold text-white text-xs ${profile.selectedTheme === idx ? 'ring-4 ring-purple-600 ring-offset-2 scale-110' : 'ring-2 ring-gray-300 hover:scale-105'} transition`} style={{ background: idx === 12 ? `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` : t.gradient }} title={t.name}>
                   {t.name}
                 </button>
               ))}
@@ -778,11 +783,11 @@ const LinksAndDM = () => {
           {/* Priority Contacts */}
           <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-3xl p-8 shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-3">⭐ Friends & Family (Priority Contacts)</h2>
-            <p className="text-white font-bold text-sm mb-4">These contacts will be automatically starred in your inbox</p>
+            <p className="text-white font-bold text-sm mb-4">These contacts will be automatically starred in your inbox (Up to 20)</p>
             <div className="space-y-2 mb-4">
               {priorityContacts.map((contact, idx) => (
                 <div key={idx} className="flex gap-2">
-                  <input type="text" value={contact.handle} onChange={(e) => { const newList = [...priorityContacts]; newList[idx].handle = e.target.value; setPriorityContacts(newList); }} placeholder="@handle or email" className="flex-1 p-2 rounded-lg font-bold text-xs" />
+                  <input type="text" value={contact.handle} onChange={(e) => { const newList = [...priorityContacts]; newList[idx].handle = e.target.value; setPriorityContacts(newList); }} placeholder="@handle or email" className="flex-1 p-2 rounded-lg font-bold text-sm" />
                   {priorityContacts.length > 1 && (
                     <button onClick={() => setPriorityContacts(priorityContacts.filter((_, i) => i !== idx))} className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold">✕</button>
                   )}
@@ -796,6 +801,10 @@ const LinksAndDM = () => {
 
           <div className="flex gap-3">
             <button onClick={saveProfileToFirebase} className="flex-1 bg-green-500 text-white px-6 py-4 rounded-2xl font-bold text-xl hover:shadow-xl">💾 Save All</button>
+          </div>
+
+          <div className="text-center text-white font-bold">
+            <p className="text-sm">Powered by Links & DM 💎</p>
           </div>
         </div>
 
@@ -816,7 +825,9 @@ const LinksAndDM = () => {
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }`}</style>
         
         <div className="max-w-2xl mx-auto">
-          <button onClick={() => setCurrentView('editor')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold mb-6 hover:shadow-xl">← Back to Editor</button>
+          {!isPublicPreview && user && (
+            <button onClick={() => setCurrentView('editor')} className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold mb-6 hover:shadow-xl">← Back to Editor</button>
+          )}
           
           <div className="bg-white rounded-3xl p-8 shadow-2xl border-4 border-white/50">
             {profile.profilePic && <img src={profile.profilePic} alt="Profile" className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-purple-500" />}
@@ -825,60 +836,70 @@ const LinksAndDM = () => {
             <p className="text-center text-gray-700 mb-6">{profile.bio}</p>
 
             <div className="space-y-3">
+              {/* 1. Book a Meeting */}
               {dmButtons.bookMeeting.enabled && dmButtons.bookMeeting.calendarLink && (
                 <a href={formatUrl(dmButtons.bookMeeting.calendarLink)} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   {dmButtons.bookMeeting.icon} {dmButtons.bookMeeting.label}
                 </a>
               )}
 
+              {/* 2. Let's Connect */}
               {dmButtons.letsConnect.enabled && (
                 <button onClick={() => { setCurrentMessageType(dmButtons.letsConnect); setShowMessageForm(true); }} style={{ backgroundColor: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   {dmButtons.letsConnect.icon} {dmButtons.letsConnect.label}
                 </button>
               )}
 
+              {/* 3. Collab Request */}
               {dmButtons.collabRequest.enabled && (
                 <button onClick={() => { setCurrentMessageType(dmButtons.collabRequest); setShowMessageForm(true); }} style={{ backgroundColor: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   {dmButtons.collabRequest.icon} {dmButtons.collabRequest.label}
                 </button>
               )}
 
+              {/* 4. Support a Cause */}
               {dmButtons.supportCause.enabled && charityLinks.some(c => c.url) && (
                 <button onClick={() => setShowModal('charities')} style={{ backgroundColor: buttonColors.supportCause.bg, color: buttonColors.supportCause.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   {dmButtons.supportCause.icon} {dmButtons.supportCause.label}
                 </button>
               )}
 
+              {/* 5. @Handles */}
               {categoryButtons.handles.some(h => h.handle) && (
                 <button onClick={() => setShowModal('handles')} style={{ backgroundColor: buttonColors.handles.bg, color: buttonColors.handles.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
-                  🔗 Social Handles
+                  🔗 @Handles
                 </button>
               )}
 
+              {/* 6. Email */}
               {categoryButtons.email.some(e => e.email) && (
                 <button onClick={() => setShowModal('email')} style={{ backgroundColor: buttonColors.email.bg, color: buttonColors.email.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   📧 Email
                 </button>
               )}
 
+              {/* 7. Contact */}
               {categoryButtons.contact.some(c => c.phone) && (
                 <button onClick={() => setShowModal('contact')} style={{ backgroundColor: buttonColors.contact.bg, color: buttonColors.contact.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   📱 Contact
                 </button>
               )}
 
+              {/* 8. Website */}
               {categoryButtons.website.some(w => w.url) && (
                 <button onClick={() => setShowModal('website')} style={{ backgroundColor: buttonColors.website.bg, color: buttonColors.website.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   🌍 Website
                 </button>
               )}
 
+              {/* 9. Portfolio */}
               {portfolio.enabled && portfolio.url && (
                 <a href={formatUrl(portfolio.url)} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: buttonColors.portfolio.bg, color: buttonColors.portfolio.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   🎨 Portfolio
                 </a>
               )}
 
+              {/* 10. Projects */}
               {projects.enabled && projects.list.some(p => p.url) && (
                 <button onClick={() => setShowModal('projects')} style={{ backgroundColor: buttonColors.projects.bg, color: buttonColors.projects.text }} className="block w-full p-4 rounded-2xl font-bold text-center text-lg hover:shadow-xl transition">
                   📁 Projects
@@ -917,20 +938,20 @@ const LinksAndDM = () => {
           </div>
         )}
 
-        {/* Modals for buttons */}
+        {/* All Modals */}
         {showModal === 'handles' && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-3xl p-8 max-w-md w-full">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-2xl font-bold">🔗 Social Handles</h3>
+                <h3 className="text-2xl font-bold">🔗 @Handles</h3>
                 <button onClick={() => setShowModal(null)} className="text-4xl">×</button>
               </div>
               <div className="space-y-3">
                 {categoryButtons.handles.filter(h => h.handle).map((handle, idx) => (
-                  <div key={idx} className="bg-gray-100 rounded-xl p-4">
+                  <a key={idx} href={getSocialUrl(handle.platform, handle.handle)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-purple-100">
                     <p className="text-sm text-gray-600 font-bold">{handle.platform}</p>
                     <p className="text-lg font-bold text-purple-600">{handle.handle}</p>
-                  </div>
+                  </a>
                 ))}
               </div>
             </div>
@@ -1050,8 +1071,15 @@ const LinksAndDM = () => {
 
           <div className="bg-white rounded-3xl p-6 mb-6 shadow-xl">
             <div className="flex flex-wrap gap-2">
-              {[{ key: 'all', label: 'All', emoji: '' }, { key: 'priority', label: 'Priority', emoji: '⭐' }, { key: 'collab', label: 'Collab', emoji: '🤝' }, { key: 'meeting', label: 'Meeting', emoji: '📅' }, { key: 'connect', label: 'Connect', emoji: '💬' }, { key: 'fans', label: 'Fans', emoji: '🌸' }].map(filter => (
-                <button key={filter.key} onClick={() => setInboxFilter(filter.key)} className={`px-4 py-2 rounded-xl font-bold text-sm ${inboxFilter === filter.key ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
+              {[
+                { key: 'all', label: 'All', emoji: '' }, 
+                { key: 'priority', label: 'Priority', emoji: '⭐' }, 
+                { key: 'collab', label: 'Collab', emoji: '🤝' }, 
+                { key: 'meeting', label: 'Meeting', emoji: '📅' }, 
+                { key: 'connect', label: 'Connect', emoji: '💬' }, 
+                { key: 'fans', label: 'Fans', emoji: '🌸' }
+              ].map(filter => (
+                <button key={filter.key} onClick={() => setInboxFilter(filter.key)} className={`px-4 py-2 rounded-xl font-bold text-sm ${inboxFilter === filter.key ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
                   {filter.emoji} {filter.label}
                 </button>
               ))}
@@ -1062,7 +1090,7 @@ const LinksAndDM = () => {
             {loadingMessages ? (
               <div className="bg-white rounded-3xl p-10 text-center"><p className="text-2xl font-bold text-gray-600">Loading...</p></div>
             ) : sortedMessages.length === 0 ? (
-              <div className="bg-white rounded-3xl p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-2xl font-bold text-gray-600">No messages yet</p></div>
+              <div className="bg-white rounded-3xl p-10 text-center"><p className="text-4xl mb-3">📭</p><p className="text-2xl font-bold text-gray-600">No messages yet</p><p className="text-sm text-gray-500 mt-2">Share your link to get messages!</p></div>
             ) : (
               sortedMessages.map((msg, idx) => (
                 <div key={msg.id || idx} className="bg-white rounded-2xl p-4 shadow-lg border-4 border-purple-200">
