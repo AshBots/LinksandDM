@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAAFqbEIL3TOAcFmsxoqltJfrtfE2sOXVs",
   authDomain: "links-dm-pro.firebaseapp.com",
   projectId: "links-dm-pro",
-  storageBucket: "links-dm-pro.appspot.com",
+  storageBucket: "links-dm-pro.firebasestorage.app",
   messagingSenderId: "965082307073",
   appId: "1:965082307073:web:78ea49e4c5888852307e00",
 };
@@ -37,6 +37,7 @@ const LinksAndDM = () => {
     username: '',
     profilePic: null,
     selectedTheme: 0,
+    customTheme: { bg: '#40E0D0', accent: '#20B2AA' }
   });
 
   const [dmButtons, setDmButtons] = useState({
@@ -61,6 +62,11 @@ const LinksAndDM = () => {
   const [messageForm, setMessageForm] = useState({ name: '', contact: '', message: '' });
   const [messages, setMessages] = useState([]);
   const [inboxFilter, setInboxFilter] = useState('all');
+
+  // Theme picker state
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [customBg, setCustomBg] = useState('#40E0D0');
+  const [customAccent, setCustomAccent] = useState('#20B2AA');
 
   const themes = [
     { name: 'Turquoise Dream', bg: '#40E0D0', accent: '#20B2AA' },
@@ -182,6 +188,7 @@ const LinksAndDM = () => {
       username: '',
       profilePic: null,
       selectedTheme: 0,
+      customTheme: { bg: '#40E0D0', accent: '#20B2AA' }
     });
   };
 
@@ -217,7 +224,7 @@ const LinksAndDM = () => {
   const generateShareLink = () => {
     const username = profile.username.trim() || currentUsername;
     const link = `${window.location.origin}/${username}`;
-    alert(`Your link: ${link}\n\nCopy this to your bio!`);
+    alert(`Your link: ${link}\nCopy this to your bio!`);
   };
 
   // Message handlers
@@ -264,19 +271,14 @@ const LinksAndDM = () => {
   
   const addHandle = () => setSocialHandles([...socialHandles, { platform: 'Instagram', handle: '' }]);
   const deleteHandle = (idx) => setSocialHandles(socialHandles.filter((_, i) => i !== idx));
-  
   const addEmail = () => setEmails([...emails, { email: '' }]);
   const deleteEmail = (idx) => setEmails(emails.filter((_, i) => i !== idx));
-  
   const addPhone = () => setPhones([...phones, { phone: '' }]);
   const deletePhone = (idx) => setPhones(phones.filter((_, i) => i !== idx));
-  
   const addWebsite = () => setWebsites([...websites, { url: '' }]);
   const deleteWebsite = (idx) => setWebsites(websites.filter((_, i) => i !== idx));
-  
   const addProject = () => setProjects({ ...projects, list: [...projects.list, { title: '', url: '' }] });
   const deleteProject = (idx) => setProjects({ ...projects, list: projects.list.filter((_, i) => i !== idx) });
-  
   const addPriority = () => setPriorityContacts([...priorityContacts, { handle: '' }]);
   const deletePriority = (idx) => setPriorityContacts(priorityContacts.filter((_, i) => i !== idx));
 
@@ -303,6 +305,16 @@ const LinksAndDM = () => {
     return messages;
   };
 
+  // Theme picker handlers
+  const handleCustomTheme = () => {
+    setProfile({
+      ...profile,
+      selectedTheme: -1,
+      customTheme: { bg: customBg, accent: customAccent }
+    });
+    setShowThemePicker(false);
+  };
+
   // Loading screen
   if (loading) {
     return (
@@ -323,45 +335,211 @@ const LinksAndDM = () => {
   // LANDING PAGE
   if (currentView === 'landing') {
     return (
-      <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: '48px', fontWeight: 'bold', margin: '40px 0 10px' }}>🔗 Links & DM</div>
-          <div style={{ fontSize: '20px', margin: '10px 0 40px', fontWeight: '300' }}>Let's Do It!</div>
-          
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            color: '#333',
+      <div style={{ 
+        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+        minHeight: '100vh', 
+        padding: '20px', 
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        overflow: 'hidden'
+      }}>
+        <style>
+          {`
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap');
+            .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; }
+            .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; }
+            .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }
+            .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+          `}
+        </style>
+        
+        <div style={{ 
+          maxWidth: '800px', 
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 10
+        }}>
+          {/* Header */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '40px',
+            marginTop: '20px'
           }}>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '15px' }}>One Link. Sorted DMs.</div>
-            <div style={{ fontSize: '14px', color: '#666', marginBottom: '20px', lineHeight: '1.6' }}>
-              Smart DM Sorting • 12 Beautiful Themes • All Socials in One • Email Hub • Portfolio & Projects • Contact Central
-            </div>
+            <h1 className="heading-lg" style={{ 
+              fontSize: '3.5rem', 
+              color: 'white', 
+              fontWeight: '900',
+              textShadow: '3px 3px 0px rgba(0,0,0,0.2)',
+              letterSpacing: '-2px',
+              lineHeight: '1'
+            }}>
+              🔗 Links & DM 💬
+            </h1>
+            <button
+              onClick={() => setCurrentView('editor')}
+              style={{
+                backgroundColor: 'white',
+                color: '#667eea',
+                padding: '15px 30px',
+                borderRadius: '50px',
+                fontWeight: 'bold',
+                fontSize: '1.5rem',
+                border: '4px solid #667eea',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              Let's Do It!
+            </button>
           </div>
 
-          <div style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            color: 'white',
-            marginBottom: '20px',
+          {/* Center Hero Section */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '60px',
+            padding: '20px'
           }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '20px' }}>Transform Your Link-in-Bio Today 🚀</div>
+            <h1 className="heading-xl" style={{ 
+              fontSize: '6rem', 
+              color: 'white', 
+              fontWeight: '900',
+              textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
+              letterSpacing: '-2px',
+              lineHeight: '1',
+              marginBottom: '10px'
+            }}>
+              One Link.
+            </h1>
+            <h1 className="heading-xl" style={{ 
+              fontSize: '6rem', 
+              color: 'white', 
+              fontWeight: '900',
+              textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
+              letterSpacing: '-2px',
+              lineHeight: '1',
+              marginBottom: '20px'
+            }}>
+              Sorted DMs.
+            </h1>
+            <p className="text-lg" style={{ 
+              fontSize: '1.8rem', 
+              fontWeight: 'bold', 
+              color: 'white', 
+              marginBottom: '10px',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.2)'
+            }}>
+              The Ultimate Link-in-Bio for Creators 🌟
+            </p>
+            <p className="text-lg" style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 'bold', 
+              color: 'white',
+              textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
+            }}>
+              Manage all your links, messages & projects in one beautiful place
+            </p>
+          </div>
+
+          {/* Feature Cards - 2x3 Grid */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+            gap: '20px',
+            marginBottom: '40px',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            {[
+              { emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+              { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms instantly', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📧', title: 'Email Hub', desc: 'Never miss important emails', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📁', title: 'Portfolio & Projects', desc: 'Showcase your incredible work', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📞', title: 'Contact Central', desc: 'Phone, web, everything connected', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }
+            ].map((feature, idx) => (
+              <div key={idx} style={{ 
+                background: feature.gradient,
+                borderRadius: '24px',
+                padding: '30px',
+                boxShadow: '0 15px 35px rgba(0,0,0,0.3)',
+                border: '4px solid white',
+                transition: 'all 0.3s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-10px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '3.5rem', marginBottom: '15px', textAlign: 'center' }}>{feature.emoji}</div>
+                <h3 className="heading-md" style={{ 
+                  fontSize: '2rem', 
+                  marginBottom: '10px', 
+                  color: 'white',
+                  textAlign: 'center',
+                  textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
+                }}>{feature.title}</h3>
+                <p style={{ 
+                  fontSize: '1.2rem', 
+                  fontWeight: 'bold', 
+                  color: 'white',
+                  textAlign: 'center',
+                  textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
+                }}>{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA Section */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '24px',
+            padding: '40px',
+            textAlign: 'center',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+            border: '4px solid white',
+            marginBottom: '30px',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+            <h3 className="heading-md" style={{ 
+              fontSize: '3rem', 
+              color: 'white', 
+              marginBottom: '20px',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.2)'
+            }}>
+              Transform Your Link-in-Bio Today 🚀
+            </h3>
             <button
-              onClick={() => setCurrentView('signin')}
+              onClick={() => setCurrentView('editor')}
               style={{
                 width: '100%',
-                padding: '15px',
-                background: 'white',
+                backgroundColor: 'white',
                 color: '#667eea',
-                border: 'none',
-                borderRadius: '15px',
-                fontSize: '16px',
+                padding: '20px 0',
+                borderRadius: '16px',
+                fontSize: '2rem',
                 fontWeight: 'bold',
-                marginBottom: '10px',
+                border: '4px solid #667eea',
                 cursor: 'pointer',
+                marginBottom: '15px',
+                transition: 'all 0.3s',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 15px 30px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.2)';
               }}
             >
               Get Started Now
@@ -370,18 +548,40 @@ const LinksAndDM = () => {
               onClick={() => setCurrentView('demopreview')}
               style={{
                 width: '100%',
-                padding: '15px',
-                background: 'rgba(255, 255, 255, 0.3)',
+                backgroundColor: 'rgba(255,255,255,0.3)',
                 color: 'white',
-                border: '2px solid white',
-                borderRadius: '15px',
-                fontSize: '16px',
+                padding: '20px 0',
+                borderRadius: '16px',
+                fontSize: '2rem',
                 fontWeight: 'bold',
+                border: '4px solid white',
                 cursor: 'pointer',
+                transition: 'all 0.3s',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.5)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                e.currentTarget.style.transform = 'scale(1)';
               }}
             >
               See Demo ✨
             </button>
+          </div>
+
+          <div style={{ 
+            textAlign: 'center', 
+            marginTop: '40px',
+            color: 'white',
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
+          }}>
+            Trusted by Influencers, Celebrities & Brands 💎
           </div>
         </div>
       </div>
@@ -626,7 +826,7 @@ const LinksAndDM = () => {
                   />
                   <span style={{ fontWeight: 'bold', color: '#333' }}>
                     {btn === 'bookMeeting' && '📅 Book a Meeting'}
-                    {btn === 'letsConnect' && '💬 Let\'s Connect'}
+                    {btn === 'letsConnect' && "💬 Let's Connect"}
                     {btn === 'collabRequest' && '🤝 Collab Request'}
                     {btn === 'supportCause' && '❤️ Support a Cause'}
                   </span>
@@ -1076,7 +1276,7 @@ const LinksAndDM = () => {
               <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
                 <input
                   type="text"
-                  placeholder="@realhandle"
+                  placeholder="@yourfriend"
                   value={contact.handle}
                   onChange={(e) => {
                     const updated = [...priorityContacts];
@@ -1145,6 +1345,28 @@ const LinksAndDM = () => {
                   {theme.name}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setCustomBg(profile.customTheme.bg || '#40E0D0');
+                  setCustomAccent(profile.customTheme.accent || '#20B2AA');
+                  setShowThemePicker(true);
+                }}
+                style={{
+                  padding: '20px 10px',
+                  background: profile.selectedTheme === -1 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : 'rgba(255,255,255,0.9)',
+                  border: profile.selectedTheme === -1 ? '3px solid #333' : '1px solid #ddd',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  fontSize: '12px',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                }}
+              >
+                Custom
+              </button>
             </div>
           </div>
 
@@ -1218,15 +1440,163 @@ const LinksAndDM = () => {
             </button>
           </div>
         </div>
+
+        {/* Theme Picker Modal */}
+        {showThemePicker && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '20px',
+              padding: '25px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 15px 50px rgba(0,0,0,0.5)',
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px',
+              }}>
+                <h2 style={{
+                  fontSize: '22px',
+                  fontWeight: 'bold',
+                  color: '#333',
+                }}>Custom Theme</h2>
+                <button
+                  onClick={() => setShowThemePicker(false)}
+                  style={{
+                    fontSize: '24px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#ff6b6b',
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Primary Color</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={customBg}
+                    onChange={(e) => setCustomBg(e.target.value)}
+                    style={{ width: '40px', height: '40px', border: 'none', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="text"
+                    value={customBg}
+                    onChange={(e) => setCustomBg(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '5px',
+                      marginLeft: '10px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Accent Color</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="color"
+                    value={customAccent}
+                    onChange={(e) => setCustomAccent(e.target.value)}
+                    style={{ width: '40px', height: '40px', border: 'none', cursor: 'pointer' }}
+                  />
+                  <input
+                    type="text"
+                    value={customAccent}
+                    onChange={(e) => setCustomAccent(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      border: '1px solid #ddd',
+                      borderRadius: '5px',
+                      marginLeft: '10px',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ 
+                height: '100px', 
+                background: `linear-gradient(135deg, ${customBg} 0%, ${customAccent} 100%)`,
+                borderRadius: '10px',
+                marginBottom: '20px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                color: 'white',
+                fontSize: '20px',
+                fontWeight: 'bold',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.5)'
+              }}>
+                Preview
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  onClick={() => setShowThemePicker(false)}
+                  style={{
+                    padding: '12px',
+                    background: '#e0e0e0',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCustomTheme}
+                  style={{
+                    padding: '12px',
+                    background: '#667eea',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // PREVIEW PAGE
   if ((currentView === 'preview' || currentView === 'demopreview') && (currentView === 'preview' ? user : true)) {
-    const themeData = themes[profile.selectedTheme];
-    const bgGradient = `linear-gradient(135deg, ${themeData.bg} 0%, ${themeData.accent} 100%)`;
-    
+    const themeData = profile.selectedTheme === -1 
+      ? profile.customTheme 
+      : themes[profile.selectedTheme];
+    const bgGradient = themeData 
+      ? `linear-gradient(135deg, ${themeData.bg} 0%, ${themeData.accent} 100%)` 
+      : 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)';
+
     return (
       <div style={{ background: bgGradient, minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -1350,6 +1720,10 @@ const LinksAndDM = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
             {socialHandles.length > 0 && (
               <button
+                onClick={() => {
+                  // In demo version, we'll show all buttons
+                  // In production, we'd navigate to a social handles section
+                }}
                 style={{
                   padding: '15px',
                   background: 'rgba(255,255,255,0.9)',
@@ -1367,7 +1741,7 @@ const LinksAndDM = () => {
 
             {emails.length > 0 && (
               <a
-                href={`mailto:${emails[0].email}`}
+                href={emails.length > 0 ? `mailto:${emails[0].email}` : ''}
                 style={{
                   padding: '15px',
                   background: 'rgba(255,255,255,0.9)',
@@ -1388,7 +1762,7 @@ const LinksAndDM = () => {
 
             {phones.length > 0 && (
               <a
-                href={`tel:${phones[0].phone}`}
+                href={phones.length > 0 ? `tel:${phones[0].phone}` : ''}
                 style={{
                   padding: '15px',
                   background: 'rgba(255,255,255,0.9)',
@@ -1409,7 +1783,7 @@ const LinksAndDM = () => {
 
             {websites.length > 0 && (
               <a
-                href={websites[0].url}
+                href={websites.length > 0 ? websites[0].url : ''}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1453,9 +1827,9 @@ const LinksAndDM = () => {
               </a>
             )}
 
-            {projects.enabled && projects.list.length > 0 && (
+            {projects.enabled && projects.list.length && (
               <a
-                href={projects.list[0].url}
+                href={projects.list.length > 0 ? projects.list[0].url : ''}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1691,13 +2065,12 @@ const LinksAndDM = () => {
             <button
               onClick={() => setCurrentView('editor')}
               style={{
-                padding: '10px 15px',
+                padding: '10px 20px',
                 background: '#667eea',
                 color: 'white',
                 border: 'none',
                 borderRadius: '10px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
               }}
             >
               ← Back
