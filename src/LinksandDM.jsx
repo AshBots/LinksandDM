@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, deleteDoc, setDoc, getDoc } from 'firebase/firestore';
@@ -7,23 +8,327 @@ const firebaseConfig = {
   apiKey: "AIzaSyAAFqbEIL3TOAcFmsxoqltJfrtfE2sOXVs",
   authDomain: "links-dm-pro.firebaseapp.com",
   projectId: "links-dm-pro",
-  storageBucket: "links-dm-pro.appspot.com",
+  storageBucket: "links-dm-pro.firebasestorage.app",
   messagingSenderId: "965082307073",
   appId: "1:965082307073:web:78ea49e4c5888852307e00",
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+const ErrorBoundary = ({ children }) => {
+  const [hasError, setHasError] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const errorHandler = (error) => {
+      console.error('Uncaught error:', error);
+      setHasError(true);
+      setError(error);
+    };
+    
+    window.addEventListener('error', errorHandler);
+    window.addEventListener('unhandledrejection', errorHandler);
+    
+    return () => {
+      window.removeEventListener('error', errorHandler);
+      window.removeEventListener('unhandledrejection', errorHandler);
+    };
+  }, []);
+
+  if (hasError) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        padding: '20px',
+        backgroundColor: '#f5f5f5',
+        textAlign: 'center'
+      }}>
+        <h1 style={{ color: '#ff4444', fontSize: '2rem', marginBottom: '1rem' }}>Something went wrong 😢</h1>
+        <pre style={{ 
+          backgroundColor: '#f8f9fa', 
+          border: '1px solid #ddd',
+          padding: '1rem',
+          borderRadius: '8px',
+          whiteSpace: 'pre-wrap',
+          textAlign: 'left',
+          maxWidth: '800px',
+          overflow: 'auto',
+          fontSize: '0.9rem'
+        }}>
+          {error?.message || 'Unknown error'}
+        </pre>
+        <button 
+          onClick={() => window.location.reload()}
+          style={{
+            marginTop: '2rem',
+            padding: '0.75rem 1.5rem',
+            backgroundColor: '#4a6fa5',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+          }}
+        >
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
+
+  return children;
+};
+
+const LoadingSpinner = () => (
+  <div style={{ 
+    minHeight: '100vh', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    flexDirection: 'column'
+  }}>
+    <div style={{ 
+      width: '80px', 
+      height: '80px', 
+      border: '8px solid #4a6fa5', 
+      borderTop: '8px solid #fff', 
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      marginBottom: '20px'
+    }}></div>
+    <div style={{ fontSize: '1.5rem', color: '#333', fontWeight: 'bold' }}>Loading application...</div>
+    <style>
+      {`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}
+    </style>
+  </div>
+);
+
+const ProfilePage = () => {
+  const { username } = useParams();
+  const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (!username) {
+          navigate('/');
+          return;
+        }
+        
+        // In production, we would fetch from Firebase
+        // For demo purposes, we're creating a fake profile
+        setProfileData({
+          profile: {
+            name: username.charAt(0).toUpperCase() + username.slice(1),
+            profession: 'Profile Owner',
+            bio: `Welcome to ${username}'s Links & DM profile!`,
+            selectedTheme: 1,
+            profilePic: null
+          },
+          dmButtons: {
+            bookMeeting: { enabled: true, label: 'Book a Meeting' },
+            letsConnect: { enabled: true, label: "Let's Connect" }
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        // Navigate to landing page if profile not found
+        navigate('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [username, navigate]);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!profileData) {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        backgroundColor: '#f5f5f5',
+        flexDirection: 'column',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div style={{ fontSize: '2rem', color: '#ff4444', marginBottom: '1rem' }}>Profile not found</div>
+        <div style={{ 
+          maxWidth: '600px', 
+          backgroundColor: '#fff',
+          border: '1px solid #ddd',
+          borderRadius: '8px',
+          padding: '20px',
+          marginBottom: '20px'
+        }}>
+          The profile for @{username} doesn't exist or hasn't been created yet.
+        </div>
+        <button 
+          onClick={() => navigate('/')}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#4a6fa5',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          Go to Home
+        </button>
+      </div>
+    );
+  }
+
+  // Render the preview page with this profile's data
+  const themeData = [
+    { name: 'Turquoise Dream', bg: '#40E0D0', accent: '#20B2AA' },
+    { name: 'Ice Blue', bg: '#B0E0E6', accent: '#87CEEB' },
+    { name: 'Pastel Mint', bg: '#98FF98', accent: '#AFEEEE' },
+    { name: 'Soft Lavender', bg: '#E6D5F0', accent: '#D8BFD8' },
+    { name: 'Peach Cream', bg: '#FFDAB9', accent: '#FFE4B5' },
+    { name: 'Rose Quartz', bg: '#FF69B4', accent: '#FFB6C1' },
+    { name: 'Aquamarine', bg: '#7FFFD4', accent: '#5F9EA0' },
+    { name: 'Powder Blue', bg: '#B0E0E6', accent: '#ADD8E6' },
+    { name: 'Honeydew', bg: '#F0FFF0', accent: '#E0FFE0' },
+    { name: 'Misty Rose', bg: '#FFE4E1', accent: '#F5F5DC' },
+    { name: 'Sky', bg: '#87CEEB', accent: '#00BFFF' },
+    { name: 'Orchid Dream', bg: '#DA70D6', accent: '#FF1493' },
+  ][profileData.profile.selectedTheme || 0];
+  
+  const bgGradient = themeData 
+    ? `linear-gradient(135deg, ${themeData.bg} 0%, ${themeData.accent} 100%)` 
+    : 'linear-gradient(135deg, #B0E0E6 0%, #87CEEB 100%)';
+
+  return (
+    <div style={{ background: bgGradient, minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
+          <div style={{ fontSize: '14px', color: '#999', marginBottom: '10px' }}>🔗 Links & DM</div>
+          <div style={{ fontSize: '12px', color: '#999' }}>Connect • Collaborate • Create</div>
+        </div>
+
+        {/* Profile Section */}
+        <div style={{ textAlign: 'center', marginBottom: '30px', color: 'white' }}>
+          {profileData.profile.profilePic && (
+            <div style={{
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: 'white',
+              margin: '0 auto 15px',
+              backgroundImage: `url(${profileData.profile.profilePic})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              border: '3px solid white',
+            }} />
+          )}
+          <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{profileData.profile.name}</div>
+          <div style={{ fontSize: '16px', opacity: 0.9 }}>{profileData.profile.profession}</div>
+          <div style={{ fontSize: '14px', opacity: 0.85, marginTop: '10px' }}>{profileData.profile.bio}</div>
+        </div>
+
+        {/* Demo buttons - in production these would connect to the real functionality */}
+        {profileData.dmButtons.bookMeeting.enabled && (
+          <button
+            style={{
+              width: '100%',
+              padding: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#3498db',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              cursor: 'not-allowed',
+            }}
+          >
+            📅 Book a Meeting
+          </button>
+        )}
+
+        {profileData.dmButtons.letsConnect.enabled && (
+          <button
+            style={{
+              width: '100%',
+              padding: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#9b59b6',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              cursor: 'not-allowed',
+            }}
+          >
+            💬 Let's Connect
+          </button>
+        )}
+
+        {/* Ready to connect message */}
+        <div style={{
+          textAlign: 'center',
+          color: 'white',
+          marginBottom: '20px',
+          fontSize: '18px',
+          fontWeight: 'bold',
+        }}>
+          Ready to connect! 🚀
+        </div>
+
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            display: 'block',
+            margin: '2rem auto 0',
+            padding: '12px',
+            background: 'rgba(255,255,255,0.9)',
+            border: 'none',
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            width: '80%'
+          }}
+        >
+          ← Back to Home
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const LinksAndDM = () => {
   const [currentView, setCurrentView] = useState('landing');
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentUsername, setCurrentUsername] = useState('');
-  const [previewUsername, setPreviewUsername] = useState('');
-  const [showMessageForm, setShowMessageForm] = useState(false);
-  const [showModal, setShowModal] = useState(null);
   
   // Auth states
   const [authEmail, setAuthEmail] = useState('');
@@ -42,10 +347,10 @@ const LinksAndDM = () => {
   });
 
   const [dmButtons, setDmButtons] = useState({
-    bookMeeting: { enabled: true, link: '', label: 'Book a Meeting', icon: '📅' },
-    letsConnect: { enabled: true, label: "Let's Connect", icon: '💬' },
-    collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝' },
-    supportCause: { enabled: false, label: 'Support a Cause', icon: '❤️' },
+    bookMeeting: { enabled: true, link: '' },
+    letsConnect: { enabled: true },
+    collabRequest: { enabled: true },
+    supportCause: { enabled: false },
   });
 
   const [charityLinks, setCharityLinks] = useState([]);
@@ -58,51 +363,25 @@ const LinksAndDM = () => {
   const [priorityContacts, setPriorityContacts] = useState([]);
   
   // Message states
+  const [showMessageForm, setShowMessageForm] = useState(false);
   const [messageType, setMessageType] = useState(null);
   const [messageForm, setMessageForm] = useState({ name: '', contact: '', message: '' });
   const [messages, setMessages] = useState([]);
   const [inboxFilter, setInboxFilter] = useState('all');
-  const [showConfirmation, setShowConfirmation] = useState(false);
-
-  const pastelColors = { 
-    bookMeeting: '#ADD8E6', 
-    letsConnect: '#DDA0DD', 
-    collabRequest: '#AFEEEE', 
-    supportCause: '#FFB6D9', 
-    handles: '#FFB6C1', 
-    email: '#B0E0E6', 
-    contact: '#B4F8C8', 
-    website: '#DDA0DD', 
-    portfolio: '#B0E0E6', 
-    projects: '#FFDAB9' 
-  };
-
-  const textColors = { 
-    bookMeeting: '#0066cc', 
-    letsConnect: '#8B008B', 
-    collabRequest: '#008B8B', 
-    supportCause: '#C71585', 
-    handles: '#C71585', 
-    email: '#1E90FF', 
-    contact: '#228B22', 
-    website: '#663399', 
-    portfolio: '#1E90FF', 
-    projects: '#FF8C00' 
-  };
 
   const themes = [
-    { name: 'Turquoise Dream', gradient: 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)' },
-    { name: 'Ice Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #87CEEB 100%)' },
-    { name: 'Pastel Mint', gradient: 'linear-gradient(135deg, #98FF98 0%, #AFEEEE 100%)' },
-    { name: 'Soft Lavender', gradient: 'linear-gradient(135deg, #DDA0DD 0%, #E6E6FA 100%)' },
-    { name: 'Peach Cream', gradient: 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)' },
-    { name: 'Rose Quartz', gradient: 'linear-gradient(135deg, #FF69B4 0%, #FFB6C1 100%)' },
-    { name: 'Aquamarine', gradient: 'linear-gradient(135deg, #7FFFD4 0%, #40E0D0 100%)' },
-    { name: 'Powder Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #ADD8E6 100%)' },
-    { name: 'Honeydew', gradient: 'linear-gradient(135deg, #F0FFF0 0%, #E0FFE0 100%)' },
-    { name: 'Misty Rose', gradient: 'linear-gradient(135deg, #FFE4E1 0%, #FFE4C4 100%)' },
-    { name: 'Sky', gradient: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)' },
-    { name: 'Orchid Dream', gradient: 'linear-gradient(135deg, #DA70D6 0%, #EE82EE 100%)' },
+    { name: 'Turquoise Dream', bg: '#40E0D0', accent: '#20B2AA' },
+    { name: 'Ice Blue', bg: '#B0E0E6', accent: '#87CEEB' },
+    { name: 'Pastel Mint', bg: '#98FF98', accent: '#AFEEEE' },
+    { name: 'Soft Lavender', bg: '#E6D5F0', accent: '#D8BFD8' },
+    { name: 'Peach Cream', bg: '#FFDAB9', accent: '#FFE4B5' },
+    { name: 'Rose Quartz', bg: '#FF69B4', accent: '#FFB6C1' },
+    { name: 'Aquamarine', bg: '#7FFFD4', accent: '#5F9EA0' },
+    { name: 'Powder Blue', bg: '#B0E0E6', accent: '#ADD8E6' },
+    { name: 'Honeydew', bg: '#F0FFF0', accent: '#E0FFE0' },
+    { name: 'Misty Rose', bg: '#FFE4E1', accent: '#F5F5DC' },
+    { name: 'Sky', bg: '#87CEEB', accent: '#00BFFF' },
+    { name: 'Orchid Dream', bg: '#DA70D6', accent: '#FF1493' },
   ];
 
   // Auth effect
@@ -115,10 +394,10 @@ const LinksAndDM = () => {
       }
       setLoading(false);
     });
+    
     return unsubscribe;
   }, []);
 
-  // Load user profile from Firebase
   const loadUserProfile = async (uid) => {
     try {
       const profileRef = doc(db, 'users', uid);
@@ -143,7 +422,6 @@ const LinksAndDM = () => {
     }
   };
 
-  // Load messages for current user
   const loadMessages = async (uid) => {
     try {
       const messagesRef = collection(db, 'messages');
@@ -213,7 +491,6 @@ const LinksAndDM = () => {
     });
   };
 
-  // Save profile to Firebase
   const saveProfile = async () => {
     if (!user) return;
     try {
@@ -241,253 +518,340 @@ const LinksAndDM = () => {
     }
   };
 
-  // Generate share link
   const generateShareLink = () => {
     const username = profile.username.trim() || currentUsername;
     const link = `${window.location.origin}/${username}`;
-    alert(`Your link: ${link}\n\nCopy this to your bio!`);
+    alert(`Your link: ${link}\nCopy this to your bio!`);
   };
 
   const handleSendMessage = async () => {
-    if (!messageForm.name || !messageForm.contact || !messageForm.message) {
+    if (!messageForm.name || !messageForm.message) {
       alert('Please fill all fields');
       return;
     }
+
     try {
+      const emojiMap = {
+        booking: '📅',
+        connect: '💬',
+        collab: '🤝',
+        support: '❤️',
+        fans: '🌸',
+      };
+
+      const priority = priorityContacts.some(c => 
+        c.handle.toLowerCase().includes(messageForm.contact.toLowerCase()) || 
+        messageForm.contact.toLowerCase().includes(c.handle.toLowerCase())
+      );
+
       await addDoc(collection(db, 'messages'), {
-        recipientId: user.uid,
+        recipientId: user ? user.uid : 'demo',
         senderName: messageForm.name,
         senderContact: messageForm.contact,
         message: messageForm.message,
-        messageType: messageType?.icon || '💬',
+        type: messageType,
+        emoji: emojiMap[messageType] || '💬',
+        isPriority: priority && messageType === 'connect',
         timestamp: new Date(),
-        isPriority: priorityContacts.some(c => c.handle === messageForm.contact),
-        emoji: messageType?.icon || '💬',
       });
-      setShowMessageForm(false);
+
       setMessageForm({ name: '', contact: '', message: '' });
-      setShowConfirmation(true);
-      setTimeout(() => setShowConfirmation(false), 2000);
+      setShowMessageForm(false);
+      alert('Message sent successfully!');
     } catch (error) {
       console.error('Error sending message:', error);
       alert('Error sending message');
     }
   };
 
-  const handleMessageFormOpen = (buttonKey) => {
-    setMessageType(dmButtons[buttonKey]);
-    setShowMessageForm(true);
-  };
+  // Add/Delete handlers
+  const addCharity = () => setCharityLinks([...charityLinks, { name: '', url: '' }]);
+  const deleteCharity = (idx) => setCharityLinks(charityLinks.filter((_, i) => i !== idx));
+  const addHandle = () => setSocialHandles([...socialHandles, { platform: 'Instagram', handle: '' }]);
+  const deleteHandle = (idx) => setSocialHandles(socialHandles.filter((_, i) => i !== idx));
+  const addEmail = () => setEmails([...emails, { email: '' }]);
+  const deleteEmail = (idx) => setEmails(emails.filter((_, i) => i !== idx));
+  const addPhone = () => setPhones([...phones, { phone: '' }]);
+  const deletePhone = (idx) => setPhones(phones.filter((_, i) => i !== idx));
+  const addWebsite = () => setWebsites([...websites, { url: '' }]);
+  const deleteWebsite = (idx) => setWebsites(websites.filter((_, i) => i !== idx));
+  const addProject = () => setProjects({ ...projects, list: [...projects.list, { title: '', url: '' }] });
+  const deleteProject = (idx) => setProjects({ ...projects, list: projects.list.filter((_, i) => i !== idx) });
+  const addPriority = () => setPriorityContacts([...priorityContacts, { handle: '' }]);
+  const deletePriority = (idx) => setPriorityContacts(priorityContacts.filter((_, i) => i !== idx));
 
-  const getFilteredMessages = () => {
-    let filtered = messages;
-    if (inboxFilter === 'priority') {
-      filtered = messages.filter(m => m.isPriority);
+  // Handle image upload
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfile({ ...profile, profilePic: reader.result });
+      };
+      reader.readAsDataURL(file);
     }
-    return filtered;
   };
 
-  const formatUrl = (url) => {
-    if (!url) return '';
-    if (url.startsWith('http://') || url.startsWith('https://')) return url;
-    return `https://${url}`;
+  // Filter messages
+  const getFilteredMessages = () => {
+    if (inboxFilter === 'all') return messages;
+    if (inboxFilter === 'priority') return messages.filter(m => m.isPriority);
+    if (inboxFilter === 'collab') return messages.filter(m => m.type === 'collab');
+    if (inboxFilter === 'booking') return messages.filter(m => m.type === 'booking');
+    if (inboxFilter === 'connect') return messages.filter(m => m.type === 'connect');
+    if (inboxFilter === 'fans') return messages.filter(m => m.isPriority === false && m.type === 'connect');
+    return messages;
   };
-
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', fontSize: '24px' }}>Loading...</div>;
-  }
 
   // LANDING PAGE
   if (currentView === 'landing') {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(to bottom, #f591ba, #f2bc7c, #7fda7f)',
-        padding: '20px',
+      <div style={{ 
+        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+        minHeight: '100vh', 
+        padding: '20px', 
         fontFamily: 'system-ui, -apple-system, sans-serif',
+        overflow: 'hidden'
       }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); 
-        .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } 
-        .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; } 
-        .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }`}</style>
-
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <style>
+          {`
+            @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap');
+            .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; }
+            .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; }
+            .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }
+            .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+          `}
+        </style>
+        
+        <div style={{ 
+          maxWidth: '800px', 
+          margin: '0 auto',
+          position: 'relative',
+          zIndex: 10
+        }}>
           {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '48px' }}>
-            <h1 style={{
-              fontSize: '36px',
-              fontWeight: 'bold',
-              color: 'white',
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            marginBottom: '40px',
+            marginTop: '20px'
+          }}>
+            <h1 className="heading-lg" style={{ 
+              fontSize: '3.5rem', 
+              color: 'white', 
+              fontWeight: '900',
               textShadow: '3px 3px 0px rgba(0,0,0,0.2)',
-              margin: 0,
-              fontFamily: 'Poppins, sans-serif',
-            }}>🔗 Links & DM 💬</h1>
+              letterSpacing: '-2px',
+              lineHeight: '1'
+            }}>
+              🔗 Links & DM 💬
+            </h1>
             <button
-              onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
+              onClick={() => setCurrentView('signin')}
               style={{
-                background: 'white',
-                color: '#8B5CF6',
-                padding: '12px 40px',
+                backgroundColor: 'white',
+                color: '#667eea',
+                padding: '15px 30px',
                 borderRadius: '50px',
-                border: '3px solid #E9D5FF',
                 fontWeight: 'bold',
-                fontSize: '16px',
+                fontSize: '1.5rem',
+                border: '4px solid #667eea',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
-                boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px'
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             >
-              {user ? '✏️ Edit' : "Let's Do It!"}
+              Let's Do It!
             </button>
           </div>
 
-          {/* Hero Section */}
-          <div style={{ textAlign: 'center', marginBottom: '80px' }}>
-            <h1 style={{
-              fontSize: '72px',
+          {/* Center Hero Section */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '60px',
+            padding: '20px'
+          }}>
+            <h1 className="heading-xl" style={{ 
+              fontSize: '6rem', 
+              color: 'white', 
               fontWeight: '900',
-              color: 'white',
               textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
-              margin: '0 0 20px 0',
-              fontFamily: 'Poppins, sans-serif',
-            }}>One Link.</h1>
-            <h1 style={{
-              fontSize: '72px',
+              letterSpacing: '-2px',
+              lineHeight: '1',
+              marginBottom: '10px'
+            }}>
+              One Link.
+            </h1>
+            <h1 className="heading-xl" style={{ 
+              fontSize: '6rem', 
+              color: 'white', 
               fontWeight: '900',
-              color: 'white',
               textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
-              margin: '0 0 32px 0',
-              fontFamily: 'Poppins, sans-serif',
-            }}>Sorted DMs.</h1>
-            <p style={{
-              fontSize: '22px',
-              fontWeight: 'bold',
+              letterSpacing: '-2px',
+              lineHeight: '1',
+              marginBottom: '20px'
+            }}>
+              Sorted DMs.
+            </h1>
+            <p className="text-lg" style={{ 
+              fontSize: '1.8rem', 
+              fontWeight: 'bold', 
+              color: 'white', 
+              marginBottom: '10px',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.2)'
+            }}>
+              The Ultimate Link-in-Bio for Creators 🌟
+            </p>
+            <p className="text-lg" style={{ 
+              fontSize: '1.5rem', 
+              fontWeight: 'bold', 
               color: 'white',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-              marginBottom: '12px',
-              margin: '0 0 12px 0',
-            }}>The Ultimate Link-in-Bio for Creators 🌟</p>
-            <p style={{
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-              margin: 0,
-            }}>Manage all your links, messages & projects in one beautiful place</p>
+              textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
+            }}>
+              Manage all your links, messages & projects in one beautiful place
+            </p>
           </div>
 
-          {/* Features Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '24px',
-            maxWidth: '1200px',
-            margin: '0 auto 64px auto',
+          {/* Feature Cards - 2x3 Grid */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+            gap: '20px',
+            marginBottom: '40px',
+            maxWidth: '800px',
+            margin: '0 auto'
           }}>
             {[
-              { emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)' },
-              { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)' },
-              { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms instantly', gradient: 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)' },
-              { emoji: '📧', title: 'Email Hub', desc: 'Never miss important emails', gradient: 'linear-gradient(135deg, #3B82F6 0%, #06E0FF 100%)' },
-              { emoji: '📁', title: 'Portfolio & Projects', desc: 'Showcase your incredible work', gradient: 'linear-gradient(135deg, #F97316 0%, #FBBF24 100%)' },
-              { emoji: '📞', title: 'Contact Central', desc: 'Phone, web, everything connected', gradient: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)' },
+              { emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+              { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms instantly', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📧', title: 'Email Hub', desc: 'Never miss important emails', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📁', title: 'Portfolio & Projects', desc: 'Showcase your incredible work', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' },
+              { emoji: '📞', title: 'Contact Central', desc: 'Phone, web, everything connected', gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }
             ].map((feature, idx) => (
-              <div key={idx} style={{
+              <div key={idx} style={{ 
                 background: feature.gradient,
                 borderRadius: '24px',
-                padding: '24px',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-                border: '3px solid rgba(255,255,255,0.3)',
+                padding: '30px',
+                boxShadow: '0 15px 35px rgba(0,0,0,0.3)',
+                border: '4px solid white',
                 transition: 'all 0.3s',
-                cursor: 'pointer',
+                cursor: 'pointer'
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 30px 60px rgba(0,0,0,0.2)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.1)'; }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-10px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
               >
-                <div style={{ fontSize: '48px', marginBottom: '12px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>{feature.emoji}</div>
-                <h3 style={{
-                  fontSize: '20px',
-                  fontWeight: 'bold',
+                <div style={{ fontSize: '3.5rem', marginBottom: '15px', textAlign: 'center' }}>{feature.emoji}</div>
+                <h3 className="heading-md" style={{ 
+                  fontSize: '2rem', 
+                  marginBottom: '10px', 
                   color: 'white',
-                  textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-                  margin: '0 0 8px 0',
-                  fontFamily: 'Poppins, sans-serif',
+                  textAlign: 'center',
+                  textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
                 }}>{feature.title}</h3>
-                <p style={{
-                  fontSize: '14px',
-                  fontWeight: 'bold',
+                <p style={{ 
+                  fontSize: '1.2rem', 
+                  fontWeight: 'bold', 
                   color: 'white',
-                  textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-                  margin: 0,
+                  textAlign: 'center',
+                  textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
                 }}>{feature.desc}</p>
               </div>
             ))}
           </div>
 
           {/* CTA Section */}
-          <div style={{
-            background: 'linear-gradient(to right, #A855F7, #EC4899)',
+          <div style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '24px',
-            border: '3px solid white',
             padding: '40px',
-            maxWidth: '600px',
-            margin: '0 auto 64px auto',
             textAlign: 'center',
-            boxShadow: '0 30px 60px rgba(0,0,0,0.2)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+            border: '4px solid white',
+            marginBottom: '30px',
+            maxWidth: '600px',
+            margin: '0 auto'
           }}>
-            <h3 style={{
-              fontSize: '32px',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-              margin: '0 0 32px 0',
-              fontFamily: 'Poppins, sans-serif',
-            }}>Transform Your Link-in-Bio Today 🚀</h3>
+            <h3 className="heading-md" style={{ 
+              fontSize: '3rem', 
+              color: 'white', 
+              marginBottom: '20px',
+              textShadow: '2px 2px 0px rgba(0,0,0,0.2)'
+            }}>
+              Transform Your Link-in-Bio Today 🚀
+            </h3>
             <button
-              onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
+              onClick={() => setCurrentView('signin')}
               style={{
-                background: 'white',
-                color: '#A855F7',
-                padding: '16px 48px',
-                borderRadius: '24px',
-                border: '3px solid #E9D5FF',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                cursor: 'pointer',
                 width: '100%',
-                marginBottom: '16px',
+                backgroundColor: 'white',
+                color: '#667eea',
+                padding: '20px 0',
+                borderRadius: '16px',
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                border: '4px solid #667eea',
+                cursor: 'pointer',
+                marginBottom: '15px',
                 transition: 'all 0.3s',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 15px 30px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.2)';
+              }}
             >
               Get Started Now
             </button>
             <button
-              onClick={() => setCurrentView('preview')}
+              onClick={() => setCurrentView('demopreview')}
               style={{
-                background: 'rgba(255,255,255,0.3)',
-                border: '3px solid white',
-                color: 'white',
-                padding: '16px 48px',
-                borderRadius: '24px',
-                fontWeight: 'bold',
-                fontSize: '18px',
-                cursor: 'pointer',
                 width: '100%',
+                backgroundColor: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                padding: '20px 0',
+                borderRadius: '16px',
+                fontSize: '2rem',
+                fontWeight: 'bold',
+                border: '4px solid white',
+                cursor: 'pointer',
                 transition: 'all 0.3s',
-                textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                textShadow: '1px 1px 0px rgba(0,0,0,0.1)'
               }}
-              onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; e.target.style.transform = 'scale(1.05)'; }}
-              onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; e.target.style.transform = 'scale(1)'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.5)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
             >
               See Demo ✨
             </button>
           </div>
 
-          <div style={{ textAlign: 'center', color: 'white', textShadow: '1px 1px 0px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '18px' }}>
+          <div style={{ 
+            textAlign: 'center', 
+            marginTop: '40px',
+            color: 'white',
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            textShadow: '1px 1px 0px rgba(0,0,0,0.2)'
+          }}>
             Trusted by Influencers, Celebrities & Brands 💎
           </div>
         </div>
@@ -495,76 +859,58 @@ const LinksAndDM = () => {
     );
   }
 
-  // AUTH PAGE
-  if (currentView === 'auth' && !user) {
+  // SIGNIN PAGE
+  if (currentView === 'signin') {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f591ba 0%, #a8d8ea 100%)',
-        padding: '20px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        fontFamily: 'Arial, sans-serif',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
         <div style={{
           background: 'white',
-          borderRadius: '20px',
-          padding: '40px',
+          borderRadius: '25px',
+          padding: '30px',
           maxWidth: '400px',
           width: '100%',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
         }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '30px', textAlign: 'center', color: '#333' }}>
-            {authMode === 'signin' ? 'Sign In' : 'Create Account'}
-          </h2>
-
-          {authError && (
-            <div style={{
-              background: '#FEE2E2',
-              color: '#DC2626',
-              padding: '12px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}>
-              {authError}
-            </div>
-          )}
-
+          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '10px', color: '#667eea', textAlign: 'center' }}>🔗 Links & DM</div>
+          
           <form onSubmit={handleAuth}>
-            <input
-              type="email"
-              value={authEmail}
-              onChange={(e) => setAuthEmail(e.target.value)}
-              placeholder="Email"
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginBottom: '15px',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>Email</label>
+              <input
+                type="email"
+                value={authEmail}
+                onChange={(e) => setAuthEmail(e.target.value)}
+                placeholder="your@email.com"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #667eea',
+                  borderRadius: '10px',
+                  boxSizing: 'border-box',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
 
-            <input
-              type="password"
-              value={authPassword}
-              onChange={(e) => setAuthPassword(e.target.value)}
-              placeholder="Password"
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginBottom: '20px',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-              }}
-            />
+            <div style={{ marginBottom: '15px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>Password</label>
+              <input
+                type="password"
+                value={authPassword}
+                onChange={(e) => setAuthPassword(e.target.value)}
+                placeholder="••••••"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #667eea',
+                  borderRadius: '10px',
+                  boxSizing: 'border-box',
+                  fontSize: '14px',
+                }}
+              />
+            </div>
+
+            {authError && <div style={{ color: 'red', marginBottom: '15px', fontSize: '12px' }}>{authError}</div>}
 
             <button
               type="submit"
@@ -574,11 +920,11 @@ const LinksAndDM = () => {
                 background: '#667eea',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 fontSize: '16px',
                 fontWeight: 'bold',
                 cursor: 'pointer',
-                marginBottom: '15px',
+                marginBottom: '10px',
               }}
             >
               {authMode === 'signin' ? 'Sign In' : 'Sign Up'}
@@ -586,21 +932,23 @@ const LinksAndDM = () => {
           </form>
 
           <button
-            onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+            onClick={() => {
+              setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+              setAuthError('');
+            }}
             style={{
               width: '100%',
               padding: '12px',
               background: '#f0f0f0',
               color: '#333',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '10px',
               fontSize: '14px',
-              fontWeight: 'bold',
               cursor: 'pointer',
               marginBottom: '15px',
             }}
           >
-            {authMode === 'signin' ? 'Create New Account' : 'Already have account? Sign In'}
+            {authMode === 'signin' ? "Don't have account? Sign Up" : 'Already have account? Sign In'}
           </button>
 
           <button
@@ -611,10 +959,911 @@ const LinksAndDM = () => {
               background: 'white',
               color: '#667eea',
               border: '2px solid #667eea',
-              borderRadius: '8px',
+              borderRadius: '10px',
+              fontSize: '14px',
+              cursor: 'pointer',
+            }}
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // EDITOR PAGE
+  if (currentView === 'editor' && user) {
+    return (
+      <div style={{ background: 'linear-gradient(135deg, #f5a6c5 0%, #a8d8ea 100%)', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#667eea' }}>🔗 Links & DM</div>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '10px 20px',
+                background: '#ff6b6b',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              Logout
+            </button>
+          </div>
+
+          {/* Profile Section */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>👤 Profile</div>
+            
+            <div style={{ marginBottom: '15px', textAlign: 'center' }}>
+              <div style={{
+                width: '100px',
+                height: '100px',
+                borderRadius: '50%',
+                background: '#ddd',
+                margin: '0 auto 10px',
+                backgroundImage: profile.profilePic ? `url(${profile.profilePic})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }} />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ marginBottom: '10px' }}
+              />
+            </div>
+
+            <input
+              type="text"
+              placeholder="Name"
+              value={profile.name}
+              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '2px solid #ddd',
+                borderRadius: '10px',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            <input
+              type="text"
+              placeholder="Profession"
+              value={profile.profession}
+              onChange={(e) => setProfile({ ...profile, profession: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '2px solid #ddd',
+                borderRadius: '10px',
+                boxSizing: 'border-box',
+              }}
+            />
+
+            <textarea
+              placeholder="Bio"
+              value={profile.bio}
+              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '2px solid #ddd',
+                borderRadius: '10px',
+                boxSizing: 'border-box',
+                minHeight: '80px',
+              }}
+            />
+
+            <input
+              type="text"
+              placeholder="Username"
+              value={profile.username}
+              onChange={(e) => setProfile({ ...profile, username: e.target.value })}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '2px solid #ddd',
+                borderRadius: '10px',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          {/* Smart DM Buttons */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '15px', color: '#e74c3c' }}>💌 Smart DM Buttons</div>
+            
+            {['bookMeeting', 'letsConnect', 'collabRequest', 'supportCause'].map((btn) => (
+              <div key={btn} style={{ marginBottom: '15px', padding: '10px', background: '#f8f9fa', borderRadius: '10px', border: '1px solid #ddd' }}>
+                <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                  <input
+                    type="checkbox"
+                    checked={dmButtons[btn].enabled}
+                    onChange={(e) => setDmButtons({
+                      ...dmButtons,
+                      [btn]: { ...dmButtons[btn], enabled: e.target.checked }
+                    })}
+                    style={{ marginRight: '10px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 'bold', color: '#333' }}>
+                    {btn === 'bookMeeting' && '📅 Book a Meeting'}
+                    {btn === 'letsConnect' && "💬 Let's Connect"}
+                    {btn === 'collabRequest' && '🤝 Collab Request'}
+                    {btn === 'supportCause' && '❤️ Support a Cause'}
+                  </span>
+                </label>
+                {dmButtons[btn].enabled && (
+                  <div>
+                    <input
+                      type="text"
+                      placeholder={btn === 'bookMeeting' ? 'Link (Calendly, Zoom, etc.)' : 'Additional info'}
+                      value={dmButtons[btn].link || ''}
+                      onChange={(e) => setDmButtons({
+                        ...dmButtons,
+                        [btn]: { ...dmButtons[btn], link: e.target.value }
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '5px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Charity Links */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>❤️ Charity/Cause Links</div>
+            {charityLinks.map((charity, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Cause name"
+                  value={charity.name}
+                  onChange={(e) => {
+                    const updated = [...charityLinks];
+                    updated[idx].name = e.target.value;
+                    setCharityLinks(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="URL"
+                  value={charity.url}
+                  onChange={(e) => {
+                    const updated = [...charityLinks];
+                    updated[idx].url = e.target.value;
+                    setCharityLinks(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deleteCharity(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addCharity}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#e74c3c',
+              }}
+            >
+              + Add Charity Link
+            </button>
+          </div>
+
+          {/* Social Handles */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>🌍 Social Handles</div>
+            {socialHandles.map((handle, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <select
+                  value={handle.platform}
+                  onChange={(e) => {
+                    const updated = [...socialHandles];
+                    updated[idx].platform = e.target.value;
+                    setSocialHandles(updated);
+                  }}
+                  style={{
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                >
+                  <option>Instagram</option>
+                  <option>TikTok</option>
+                  <option>Twitter</option>
+                  <option>YouTube</option>
+                  <option>Snapchat</option>
+                  <option>Pinterest</option>
+                  <option>LinkedIn</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="@yourhandle"
+                  value={handle.handle}
+                  onChange={(e) => {
+                    const updated = [...socialHandles];
+                    updated[idx].handle = e.target.value;
+                    setSocialHandles(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deleteHandle(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addHandle}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#667eea',
+              }}
+            >
+              + Add Handle
+            </button>
+          </div>
+
+          {/* Emails */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>📧 Email Addresses</div>
+            {emails.map((email, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email.email}
+                  onChange={(e) => {
+                    const updated = [...emails];
+                    updated[idx].email = e.target.value;
+                    setEmails(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deleteEmail(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addEmail}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#3498db',
+              }}
+            >
+              + Add Email
+            </button>
+          </div>
+
+          {/* Phone Numbers */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>📱 Contact Numbers</div>
+            {phones.map((phone, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={phone.phone}
+                  onChange={(e) => {
+                    const updated = [...phones];
+                    updated[idx].phone = e.target.value;
+                    setPhones(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deletePhone(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addPhone}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#27ae60',
+              }}
+            >
+              + Add Number
+            </button>
+          </div>
+
+          {/* Websites */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>🌐 Website/Store</div>
+            {websites.map((website, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="url"
+                  placeholder="https://yourwebsite.com"
+                  value={website.url}
+                  onChange={(e) => {
+                    const updated = [...websites];
+                    updated[idx].url = e.target.value;
+                    setWebsites(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deleteWebsite(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addWebsite}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#8e44ad',
+              }}
+            >
+              + Add Website
+            </button>
+          </div>
+
+          {/* Portfolio */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>🎨 Portfolio</div>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <input
+                type="checkbox"
+                checked={portfolio.enabled}
+                onChange={(e) => setPortfolio({ ...portfolio, enabled: e.target.checked })}
+                style={{ marginRight: '10px', cursor: 'pointer' }}
+              />
+              <span>Enable Portfolio</span>
+            </label>
+            {portfolio.enabled && (
+              <input
+                type="url"
+                placeholder="https://yourportfolio.com"
+                value={portfolio.url}
+                onChange={(e) => setPortfolio({ ...portfolio, url: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  border: '1px solid #ddd',
+                  borderRadius: '5px',
+                  boxSizing: 'border-box',
+                }}
+              />
+            )}
+          </div>
+
+          {/* Projects */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>📂 Latest Projects</div>
+            <label style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <input
+                type="checkbox"
+                checked={projects.enabled}
+                onChange={(e) => setProjects({ ...projects, enabled: e.target.checked })}
+                style={{ marginRight: '10px', cursor: 'pointer' }}
+              />
+              <span>Enable Projects</span>
+            </label>
+            {projects.enabled && (
+              <>
+                {projects.list.map((project, idx) => (
+                  <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Project title"
+                      value={project.title}
+                      onChange={(e) => {
+                        const updated = { ...projects, list: [...projects.list] };
+                        updated.list[idx].title = e.target.value;
+                        setProjects(updated);
+                      }}
+                      style={{
+                        flex: '1',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '5px',
+                      }}
+                    />
+                    <input
+                      type="url"
+                      placeholder="Project URL"
+                      value={project.url}
+                      onChange={(e) => {
+                        const updated = { ...projects, list: [...projects.list] };
+                        updated.list[idx].url = e.target.value;
+                        setProjects(updated);
+                      }}
+                      style={{
+                        flex: '1',
+                        padding: '8px',
+                        border: '1px solid #ddd',
+                        borderRadius: '5px',
+                      }}
+                    />
+                    <button
+                      onClick={() => deleteProject(idx)}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#ff6b6b',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={addProject}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: '#f0f0f0',
+                    border: '2px solid #ddd',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    color: '#f39c12',
+                  }}
+                >
+                  + Add Project
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Priority Contacts */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>⭐ Friends & Family (Priority Contacts)</div>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Add real handles - these will be marked as priority in inbox</div>
+            {priorityContacts.map((contact, idx) => (
+              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="@yourfriend"
+                  value={contact.handle}
+                  onChange={(e) => {
+                    const updated = [...priorityContacts];
+                    updated[idx].handle = e.target.value;
+                    setPriorityContacts(updated);
+                  }}
+                  style={{
+                    flex: '1',
+                    padding: '8px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                  }}
+                />
+                <button
+                  onClick={() => deletePriority(idx)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={addPriority}
+              style={{
+                width: '100%',
+                padding: '10px',
+                background: '#f0f0f0',
+                border: '2px solid #ddd',
+                borderRadius: '5px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                color: '#f1c40f',
+              }}
+            >
+              + Add Contact
+            </button>
+          </div>
+
+          {/* Theme Selection */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>🎨 Choose Theme</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '10px' }}>
+              {themes.map((theme, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setProfile({ ...profile, selectedTheme: idx })}
+                  style={{
+                    padding: '20px 10px',
+                    background: `linear-gradient(135deg, ${theme.bg} 0%, ${theme.accent} 100%)`,
+                    border: profile.selectedTheme === idx ? '3px solid #333' : '1px solid #ddd',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    color: 'white',
+                    fontSize: '12px',
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  {theme.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+            <button
+              onClick={saveProfile}
+              style={{
+                padding: '15px',
+                background: '#27ae60',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              💾 Save All
+            </button>
+            <button
+              onClick={generateShareLink}
+              style={{
+                padding: '15px',
+                background: '#3498db',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              🔗 Generate Share Link
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <button
+              onClick={() => setCurrentView('preview')}
+              style={{
+                padding: '15px',
+                background: '#9b59b6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              👁️ Preview
+            </button>
+            <button
+              onClick={() => setCurrentView('inbox')}
+              style={{
+                padding: '15px',
+                background: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              📬 Inbox ({messages.length})
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // DEMO PREVIEW PAGE (this is simplified for the demo)
+  if (currentView === 'demopreview') {
+    const themeData = themes[0]; // Use first theme for demo
+    const bgGradient = `linear-gradient(135deg, ${themeData.bg} 0%, ${themeData.accent} 100%)`;
+    
+    return (
+      <div style={{ background: bgGradient, minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '14px', color: '#999', marginBottom: '10px' }}>🔗 Links & DM</div>
+            <div style={{ fontSize: '12px', color: '#999' }}>Connect • Collaborate • Create</div>
+          </div>
+
+          {/* Profile Section */}
+          <div style={{ textAlign: 'center', marginBottom: '30px', color: 'white' }}>
+            <div style={{
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: 'white',
+              margin: '0 auto 15px',
+              border: '3px solid white',
+            }} />
+            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>Demo Profile</div>
+            <div style={{ fontSize: '16px', opacity: 0.9 }}>Creator</div>
+            <div style={{ fontSize: '14px', opacity: 0.85, marginTop: '10px' }}>This is a demo of what your profile will look like!</div>
+          </div>
+
+          {/* Smart DM Buttons - demo version */}
+          <button
+            style={{
+              width: '100%',
+              padding: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#3498db',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              cursor: 'not-allowed',
+            }}
+          >
+            📅 Book a Meeting
+          </button>
+
+          <button
+            style={{
+              width: '100%',
+              padding: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#9b59b6',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              cursor: 'not-allowed',
+            }}
+          >
+            💬 Let's Connect
+          </button>
+
+          <button
+            style={{
+              width: '100%',
+              padding: '15px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#2ecc71',
+              border: 'none',
+              borderRadius: '15px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '10px',
+              cursor: 'not-allowed',
+            }}
+          >
+            🤝 Collab Request
+          </button>
+
+          {/* Contact Grid - demo version */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
+            <button
+              style={{
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#e75480',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'not-allowed',
+              }}
+            >
+              🌍 @ Handles
+            </button>
+
+            <a
+              style={{
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#3498db',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'not-allowed',
+                textAlign: 'center',
+                display: 'block',
+              }}
+            >
+              📧 @ Email
+            </a>
+
+            <a
+              style={{
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#27ae60',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'not-allowed',
+                textAlign: 'center',
+                display: 'block',
+              }}
+            >
+              📱 Contact
+            </a>
+
+            <a
+              style={{
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#8e44ad',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'not-allowed',
+                textAlign: 'center',
+                display: 'block',
+              }}
+            >
+              🌐 Website
+            </a>
+          </div>
+
+          {/* Ready to connect message */}
+          <div style={{
+            textAlign: 'center',
+            color: 'white',
+            marginBottom: '20px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+          }}>
+            Ready to connect! 🚀
+          </div>
+
+          {/* Bottom Buttons */}
+          <button
+            onClick={() => setCurrentView('landing')}
+            style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#333',
+              border: 'none',
+              borderRadius: '10px',
               fontSize: '14px',
               fontWeight: 'bold',
               cursor: 'pointer',
+              width: '100%',
             }}
           >
             ← Back to Landing
@@ -625,1692 +1874,440 @@ const LinksAndDM = () => {
   }
 
   // PREVIEW PAGE
-  if (currentView === 'preview') {
-    const theme = themes[profile.selectedTheme];
+  if (currentView === 'preview' && user) {
+    const themeData = themes[profile.selectedTheme];
+    const bgGradient = `linear-gradient(135deg, ${themeData.bg} 0%, ${themeData.accent} 100%)`;
+    
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: theme.gradient,
-        padding: '32px 16px',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap');`}</style>
-
-        <div style={{ maxWidth: '480px', margin: '0 auto' }}>
+      <div style={{ background: bgGradient, minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          
           {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-              margin: 0,
-              marginBottom: '8px',
-              fontFamily: 'Poppins, sans-serif',
-            }}>🔗 Links&DM 💬</h1>
-            <p style={{
-              color: 'white',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              margin: 0,
-            }}>Connect • Collaborate • Create</p>
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px', textAlign: 'center' }}>
+            <div style={{ fontSize: '14px', color: '#999', marginBottom: '10px' }}>🔗 Links & DM</div>
+            <div style={{ fontSize: '12px', color: '#999' }}>Connect • Collaborate • Create</div>
           </div>
 
           {/* Profile Section */}
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            {profile.profilePic ? (
-              <img
-                src={profile.profilePic}
-                alt="Profile"
-                style={{
-                  width: '176px',
-                  height: '176px',
-                  borderRadius: '50%',
-                  border: '8px solid white',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                  margin: '0 auto 24px auto',
-                  display: 'block',
-                  objectFit: 'cover',
-                  filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.1))',
-                }}
-              />
-            ) : (
+          <div style={{ textAlign: 'center', marginBottom: '30px', color: 'white' }}>
+            {profile.profilePic && (
               <div style={{
-                width: '176px',
-                height: '176px',
+                width: '100px',
+                height: '100px',
                 borderRadius: '50%',
-                border: '8px solid white',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-                margin: '0 auto 24px auto',
-                background: 'rgba(255,255,255,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '64px',
-                filter: 'drop-shadow(2px 2px 2px rgba(0,0,0,0.1))',
-              }}>
-                📸
-              </div>
+                background: 'white',
+                margin: '0 auto 15px',
+                backgroundImage: `url(${profile.profilePic})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                border: '3px solid white',
+              }} />
             )}
-            <h2 style={{
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-              margin: '0 0 8px 0',
-              fontFamily: 'Poppins, sans-serif',
-            }}>
-              {profile.name}
-            </h2>
-            <p style={{
-              color: 'white',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              margin: '0 0 12px 0',
-            }}>
-              {profile.profession}
-            </p>
-            <p style={{
-              color: 'rgba(255,255,255,0.95)',
-              fontSize: '14px',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              fontWeight: '600',
-              margin: 0,
-            }}>
-              {profile.bio}
-            </p>
+            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{profile.name}</div>
+            <div style={{ fontSize: '16px', opacity: 0.9 }}>{profile.profession}</div>
+            <div style={{ fontSize: '14px', opacity: 0.85, marginTop: '10px' }}>{profile.bio}</div>
           </div>
 
-          {/* DM Buttons */}
-          <div style={{ marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {dmButtons.bookMeeting.enabled && (
-              <button
-                onClick={() => handleMessageFormOpen('bookMeeting')}
-                style={{
-                  width: '100%',
-                  borderRadius: '24px',
-                  padding: '20px 24px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: '3px solid rgba(255,255,255,0.5)',
-                  background: pastelColors.bookMeeting,
-                  color: textColors.bookMeeting,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
-              >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>📅</span>
-                <span>{dmButtons.bookMeeting.label}</span>
-              </button>
-            )}
+          {/* Smart DM Buttons */}
+          {dmButtons.bookMeeting.enabled && (
+            <button
+              onClick={() => {
+                setMessageType('booking');
+                setShowMessageForm(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#3498db',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              📅 Book a Meeting
+            </button>
+          )}
 
-            {dmButtons.letsConnect.enabled && (
-              <button
-                onClick={() => handleMessageFormOpen('letsConnect')}
-                style={{
-                  width: '100%',
-                  borderRadius: '24px',
-                  padding: '20px 24px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: '3px solid rgba(255,255,255,0.5)',
-                  background: pastelColors.letsConnect,
-                  color: textColors.letsConnect,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
-              >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>💬</span>
-                <span>{dmButtons.letsConnect.label}</span>
-              </button>
-            )}
+          {dmButtons.letsConnect.enabled && (
+            <button
+              onClick={() => {
+                setMessageType('connect');
+                setShowMessageForm(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#9b59b6',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              💬 Let's Connect
+            </button>
+          )}
 
-            {dmButtons.collabRequest.enabled && (
-              <button
-                onClick={() => handleMessageFormOpen('collabRequest')}
-                style={{
-                  width: '100%',
-                  borderRadius: '24px',
-                  padding: '20px 24px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: '3px solid rgba(255,255,255,0.5)',
-                  background: pastelColors.collabRequest,
-                  color: textColors.collabRequest,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
-              >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>🤝</span>
-                <span>{dmButtons.collabRequest.label}</span>
-              </button>
-            )}
+          {dmButtons.collabRequest.enabled && (
+            <button
+              onClick={() => {
+                setMessageType('collab');
+                setShowMessageForm(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#2ecc71',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              🤝 Collab Request
+            </button>
+          )}
 
-            {dmButtons.supportCause.enabled && charityLinks.length > 0 && (
-              <button
-                onClick={() => setShowModal('charities')}
-                style={{
-                  width: '100%',
-                  borderRadius: '24px',
-                  padding: '20px 24px',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  border: '3px solid rgba(255,255,255,0.5)',
-                  background: pastelColors.supportCause,
-                  color: textColors.supportCause,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
-              >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>❤️</span>
-                <span>{dmButtons.supportCause.label}</span>
-              </button>
-            )}
-          </div>
+          {charityLinks.length > 0 && dmButtons.supportCause.enabled && (
+            <button
+              style={{
+                width: '100%',
+                padding: '15px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#e74c3c',
+                border: 'none',
+                borderRadius: '15px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                marginBottom: '10px',
+                cursor: 'pointer',
+              }}
+            >
+              ❤️ Support a Cause
+            </button>
+          )}
 
-          {/* Category Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            marginBottom: '40px',
-          }}>
+          {/* Contact Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
             {socialHandles.length > 0 && (
               <button
-                onClick={() => setShowModal('handles')}
-                style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.handles,
-                  color: textColors.handles,
-                  border: '3px solid rgba(255,255,255,0.5)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                onClick={() => {
+                  // In demo version, we'll show all buttons
+                  // In production, we'd navigate to a social handles section
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
+                style={{
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#e75480',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>🌐</span>
-                <span style={{ lineHeight: '1.2' }}>@ Handles</span>
+                🌍 @ Handles
               </button>
             )}
 
             {emails.length > 0 && (
-              <button
-                onClick={() => setShowModal('email')}
+              <a
+                href={emails.length > 0 ? `mailto:${emails[0].email}` : ''}
                 style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#3498db',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.email,
-                  color: textColors.email,
-                  border: '3px solid rgba(255,255,255,0.5)',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>📧</span>
-                <span style={{ lineHeight: '1.2' }}>@ Email</span>
-              </button>
+                📧 @ Email
+              </a>
             )}
 
             {phones.length > 0 && (
-              <button
-                onClick={() => setShowModal('contact')}
+              <a
+                href={phones.length > 0 ? `tel:${phones[0].phone}` : ''}
                 style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#27ae60',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.contact,
-                  color: textColors.contact,
-                  border: '3px solid rgba(255,255,255,0.5)',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>📱</span>
-                <span style={{ lineHeight: '1.2' }}>Contact</span>
-              </button>
+                📱 Contact
+              </a>
             )}
 
             {websites.length > 0 && (
-              <button
-                onClick={() => setShowModal('website')}
+              <a
+                href={websites.length > 0 ? websites[0].url : ''}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#8e44ad',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.website,
-                  color: textColors.website,
-                  border: '3px solid rgba(255,255,255,0.5)',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>🌍</span>
-                <span style={{ lineHeight: '1.2' }}>Website</span>
-              </button>
+                🌐 Website
+              </a>
             )}
 
-            {portfolio.enabled && (
-              <button
-                onClick={() => portfolio.url && window.open(formatUrl(portfolio.url), '_blank')}
+            {portfolio.enabled && portfolio.url && (
+              <a
+                href={portfolio.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#f39c12',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.portfolio,
-                  color: textColors.portfolio,
-                  border: '3px solid rgba(255,255,255,0.5)',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>🎨</span>
-                <span style={{ lineHeight: '1.2' }}>Portfolio</span>
-              </button>
+                🎨 Portfolio
+              </a>
             )}
 
-            {projects.enabled && projects.list.length > 0 && (
-              <button
-                onClick={() => setShowModal('projects')}
+            {projects.enabled && projects.list.length && (
+              <a
+                href={projects.list.length > 0 ? projects.list[0].url : ''}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
-                  borderRadius: '24px',
-                  padding: '20px 12px',
+                  padding: '15px',
+                  background: 'rgba(255,255,255,0.9)',
+                  color: '#e67e22',
+                  border: 'none',
+                  borderRadius: '15px',
+                  fontSize: '14px',
                   fontWeight: 'bold',
-                  fontSize: '12px',
-                  background: pastelColors.projects,
-                  color: textColors.projects,
-                  border: '3px solid rgba(255,255,255,0.5)',
                   cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                  boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  display: 'block',
                 }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 15px 30px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)'; }}
               >
-                <span style={{ fontSize: '28px', filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.1))' }}>📁</span>
-                <span style={{ lineHeight: '1.2' }}>Projects</span>
-              </button>
+                📂 Projects
+              </a>
             )}
           </div>
 
-          {/* Action Buttons */}
-          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Charity Section */}
+          {charityLinks.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              {charityLinks.map((charity, idx) => (
+                <a
+                  key={idx}
+                  href={charity.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'block',
+                    padding: '12px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#e74c3c',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    marginBottom: '10px',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                  }}
+                >
+                  ❤️ {charity.name}
+                </a>
+              ))}
+            </div>
+          )}
+
+          {/* Ready to connect message */}
+          <div style={{
+            textAlign: 'center',
+            color: 'white',
+            marginBottom: '20px',
+            fontSize: '18px',
+            fontWeight: 'bold',
+          }}>
+            Ready to connect! 🚀
+          </div>
+
+          {/* Bottom Buttons */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <button
-              onClick={() => setCurrentView('landing')}
+              onClick={() => setCurrentView('editor')}
               style={{
-                background: 'rgba(255,255,255,0.4)',
-                backdropFilter: 'blur(10px)',
-                border: '3px solid white',
-                color: 'white',
-                padding: '10px 16px',
-                borderRadius: '16px',
-                fontWeight: 'bold',
+                padding: '12px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#333',
+                border: 'none',
+                borderRadius: '10px',
                 fontSize: '14px',
+                fontWeight: 'bold',
                 cursor: 'pointer',
-                transition: 'all 0.3s',
               }}
-              onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.6)'; }}
-              onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.4)'; }}
             >
               ← Back
             </button>
-
-            {user ? (
-              <>
-                <button
-                  onClick={() => setCurrentView('editor')}
-                  style={{
-                    background: 'rgba(255,255,255,0.4)',
-                    backdropFilter: 'blur(10px)',
-                    border: '3px solid white',
-                    color: 'white',
-                    padding: '10px 16px',
-                    borderRadius: '16px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.6)'; }}
-                  onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.4)'; }}
-                >
-                  ✏️ Editor
-                </button>
-                <button
-                  onClick={() => setCurrentView('inbox')}
-                  style={{
-                    background: 'rgba(255,255,255,0.4)',
-                    backdropFilter: 'blur(10px)',
-                    border: '3px solid white',
-                    color: 'white',
-                    padding: '10px 16px',
-                    borderRadius: '16px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.6)'; }}
-                  onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.4)'; }}
-                >
-                  📬 Inbox ({messages.length})
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setCurrentView('auth')}
-                style={{
-                  background: 'rgba(255,255,255,0.4)',
-                  backdropFilter: 'blur(10px)',
-                  border: '3px solid white',
-                  color: 'white',
-                  padding: '10px 16px',
-                  borderRadius: '16px',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.6)'; }}
-                onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.4)'; }}
-              >
-                🔐 Sign In
-              </button>
-            )}
+            <button
+              onClick={() => setCurrentView('inbox')}
+              style={{
+                padding: '12px',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#333',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+              }}
+            >
+              📬 Inbox ({messages.length})
+            </button>
           </div>
-        </div>
 
-        {/* Modals */}
-        {showModal === 'handles' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
+          {/* Message Form Modal */}
+          {showMessageForm && (
             <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
+              position: 'fixed',
+              top: '0',
+              left: '0',
+              right: '0',
+              bottom: '0',
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: '1000',
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>🌐 Handles</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
-                {socialHandles.map((handle, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0' }}>{handle.platform}</p>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#0066cc', margin: 0, wordBreak: 'break-all' }}>{handle.handle}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal === 'email' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📧 Email</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
-                {emails.map((email, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#1E90FF', margin: 0, wordBreak: 'break-all' }}>{email}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal === 'contact' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📱 Contact</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
-                {phones.map((phone, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#228B22', margin: 0, wordBreak: 'break-all' }}>{phone}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal === 'website' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>🌍 Website</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '400px', overflowY: 'auto' }}>
-                {websites.map((website, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#663399', margin: 0, wordBreak: 'break-all' }}>{website}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal === 'projects' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>📁 Projects</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {projects.list.map((project, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0' }}>Project</p>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#FF8C00', margin: '0 0 4px 0', wordBreak: 'break-all' }}>{project.title}</p>
-                    <p style={{ fontSize: '12px', color: '#999', margin: 0, wordBreak: 'break-all' }}>{project.url}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showModal === 'charities' && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>❤️ Support a Cause</h3>
-                <button onClick={() => setShowModal(null)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {charityLinks.map((charity, idx) => (
-                  <div key={idx} style={{
-                    background: '#F3F4F6',
-                    borderRadius: '12px',
-                    padding: '16px',
-                  }}>
-                    <p style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', margin: '0 0 4px 0' }}>{charity.name || 'Charity'}</p>
-                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#EC4899', margin: 0, wordBreak: 'break-all' }}>{charity.url}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Message Form Modal */}
-        {showMessageForm && (
-          <div style={{
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            right: '0',
-            bottom: '0',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: '1000',
-            padding: '20px',
-            backdropFilter: 'blur(4px)',
-          }}>
-            <div style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '32px',
-              maxWidth: '400px',
-              width: '100%',
-              boxShadow: '0 30px 60px rgba(0,0,0,0.3)',
-              border: '3px solid #E9D5FF',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>Send Message</h3>
-                <button onClick={() => setShowMessageForm(false)} style={{ fontSize: '28px', fontWeight: 'bold', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px', color: '#333' }}>Name</label>
-                  <input
-                    type="text"
-                    value={messageForm.name}
-                    onChange={(e) => setMessageForm({ ...messageForm, name: e.target.value })}
-                    placeholder="Your name"
-                    style={{
-                      width: '100%',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      boxSizing: 'border-box',
-                    }}
-                  />
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '20px',
+                maxWidth: '400px',
+                width: '90%',
+              }}>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>
+                  Send Message
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px', color: '#333' }}>Email or Handle</label>
-                  <input
-                    type="text"
-                    value={messageForm.contact}
-                    onChange={(e) => setMessageForm({ ...messageForm, contact: e.target.value })}
-                    placeholder="email@example.com or @handle"
-                    style={{
-                      width: '100%',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontWeight: 'bold', fontSize: '12px', marginBottom: '8px', color: '#333' }}>Message</label>
-                  <textarea
-                    value={messageForm.message}
-                    onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
-                    placeholder="Your message..."
-                    style={{
-                      width: '100%',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      boxSizing: 'border-box',
-                      minHeight: '100px',
-                      resize: 'none',
-                    }}
-                  />
-                </div>
-
-                <div style={{
-                  background: '#F3E8FF',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  textAlign: 'center',
-                }}>
-                  <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', margin: 0 }}>Message Type: <span style={{ fontSize: '20px' }}>{messageType?.icon}</span></p>
-                </div>
-
-                <button
-                  onClick={handleSendMessage}
+                <input
+                  type="text"
+                  placeholder="Your name"
+                  value={messageForm.name}
+                  onChange={(e) => setMessageForm({ ...messageForm, name: e.target.value })}
                   style={{
                     width: '100%',
-                    background: 'linear-gradient(to right, #A855F7, #EC4899)',
-                    color: 'white',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
+                    padding: '10px',
+                    marginBottom: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                    boxSizing: 'border-box',
                   }}
-                  onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 20px rgba(0,0,0,0.2)'; }}
-                  onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-                >
-                  Send Message
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                />
 
-        {/* Confirmation Toast */}
-        {showConfirmation && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: 'white',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
-            border: '3px solid #10B981',
-            zIndex: '2000',
-            textAlign: 'center',
-            animation: 'bounce 0.5s',
-          }}>
-            <p style={{ fontSize: '32px', margin: '0 0 8px 0' }}>✅</p>
-            <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#333', margin: '0 0 4px 0' }}>Message Sent!</p>
-            <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>You'll hear back soon 🎉</p>
-          </div>
-        )}
-      </div>
-    );
-  }
+                <input
+                  type="text"
+                  placeholder="Your handle or contact"
+                  value={messageForm.contact}
+                  onChange={(e) => setMessageForm({ ...messageForm, contact: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginBottom: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                    boxSizing: 'border-box',
+                  }}
+                />
 
-  // EDITOR PAGE
-  if (currentView === 'editor' && user) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f5a6c5 0%, #a8d8ea 100%)',
-        padding: '20px',
-        fontFamily: 'Arial, sans-serif',
-      }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-          {/* Header */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <button
-              onClick={() => setCurrentView('preview')}
-              style={{
-                padding: '10px 15px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              👁️ Preview
-            </button>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>✏️ Edit Profile</div>
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: '10px 15px',
-                background: '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              Logout
-            </button>
-          </div>
+                <textarea
+                  placeholder="Your message"
+                  value={messageForm.message}
+                  onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    marginBottom: '10px',
+                    border: '1px solid #ddd',
+                    borderRadius: '5px',
+                    boxSizing: 'border-box',
+                    minHeight: '100px',
+                  }}
+                />
 
-          {/* Profile Info */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Profile Information</h3>
-
-            <input
-              type="text"
-              value={profile.name}
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-              placeholder="Your Name"
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                boxSizing: 'border-box',
-              }}
-            />
-
-            <input
-              type="text"
-              value={profile.profession}
-              onChange={(e) => setProfile({ ...profile, profession: e.target.value })}
-              placeholder="Your Profession"
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                boxSizing: 'border-box',
-              }}
-            />
-
-            <textarea
-              value={profile.bio}
-              onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-              placeholder="Your Bio"
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-                boxSizing: 'border-box',
-                minHeight: '80px',
-              }}
-            />
-
-            <input
-              type="file"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (event) => setProfile({ ...profile, profilePic: event.target.result });
-                  reader.readAsDataURL(file);
-                }
-              }}
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '5px',
-              }}
-            />
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', color: '#333' }}>🎨 Theme:</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '15px' }}>
-                {themes.map((theme, idx) => (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button
-                    key={idx}
-                    onClick={() => setProfile({ ...profile, selectedTheme: idx })}
+                    onClick={() => setShowMessageForm(false)}
                     style={{
-                      background: theme.gradient,
-                      padding: '15px',
-                      borderRadius: '10px',
-                      border: profile.selectedTheme === idx ? '3px solid #333' : '1px solid #ddd',
+                      padding: '10px',
+                      background: '#ccc',
+                      border: 'none',
+                      borderRadius: '5px',
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      color: 'white',
-                      fontSize: '12px',
-                      textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
                     }}
-                    title={theme.name}
                   >
-                    {theme.name}
+                    Cancel
                   </button>
-                ))}
-              </div>
-
-              <div style={{ background: '#f9f9f9', border: '2px solid #ddd', borderRadius: '10px', padding: '15px', marginBottom: '10px' }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#333', fontWeight: 'bold' }}>🎯 Or Create Custom Theme</h4>
-                
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', color: '#333', fontSize: '12px' }}>Color 1 (Start)</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={profile.customColor1 || '#40E0D0'}
-                      onChange={(e) => setProfile({ ...profile, customColor1: e.target.value })}
-                      style={{
-                        width: '60px',
-                        height: '50px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={profile.customColor1 || '#40E0D0'}
-                      onChange={(e) => setProfile({ ...profile, customColor1: e.target.value })}
-                      placeholder="#40E0D0"
-                      style={{
-                        flex: '1',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '5px',
-                        fontSize: '12px',
-                        fontFamily: 'monospace',
-                      }}
-                    />
-                  </div>
+                  <button
+                    onClick={handleSendMessage}
+                    style={{
+                      padding: '10px',
+                      background: '#667eea',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    Send
+                  </button>
                 </div>
-
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '5px', color: '#333', fontSize: '12px' }}>Color 2 (End)</label>
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <input
-                      type="color"
-                      value={profile.customColor2 || '#20B2AA'}
-                      onChange={(e) => setProfile({ ...profile, customColor2: e.target.value })}
-                      style={{
-                        width: '60px',
-                        height: '50px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                      }}
-                    />
-                    <input
-                      type="text"
-                      value={profile.customColor2 || '#20B2AA'}
-                      onChange={(e) => setProfile({ ...profile, customColor2: e.target.value })}
-                      placeholder="#20B2AA"
-                      style={{
-                        flex: '1',
-                        padding: '8px',
-                        border: '1px solid #ddd',
-                        borderRadius: '5px',
-                        fontSize: '12px',
-                        fontFamily: 'monospace',
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{
-                  background: `linear-gradient(135deg, ${profile.customColor1 || '#40E0D0'} 0%, ${profile.customColor2 || '#20B2AA'} 100%)`,
-                  borderRadius: '8px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  marginBottom: '10px',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
-                }}>
-                  Preview Your Custom Theme
-                </div>
-
-                <button
-                  onClick={() => {
-                    const customTheme = {
-                      name: 'Custom',
-                      gradient: `linear-gradient(135deg, ${profile.customColor1 || '#40E0D0'} 0%, ${profile.customColor2 || '#20B2AA'} 100%)`
-                    };
-                    const newThemes = [...themes];
-                    newThemes[0] = customTheme;
-                    setProfile({ ...profile, selectedTheme: 0 });
-                    alert('✅ Custom theme applied! Theme 1 has been updated.');
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                  }}
-                >
-                  ✨ Apply Custom Theme
-                </button>
               </div>
             </div>
-          </div>
-
-          {/* DM Buttons */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>DM Buttons</h3>
-
-            {Object.keys(dmButtons).map((key) => (
-              <div key={key} style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={dmButtons[key].enabled}
-                    onChange={(e) => setDmButtons({
-                      ...dmButtons,
-                      [key]: { ...dmButtons[key], enabled: e.target.checked }
-                    })}
-                    style={{ marginRight: '10px', width: '18px', height: '18px' }}
-                  />
-                  <span style={{ fontWeight: 'bold', color: '#333' }}>{dmButtons[key].label}</span>
-                </label>
-              </div>
-            ))}
-          </div>
-
-          {/* Social Handles */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Social Handles</h3>
-
-            {socialHandles.map((handle, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  value={handle.platform || ''}
-                  onChange={(e) => {
-                    const updated = [...socialHandles];
-                    updated[idx].platform = e.target.value;
-                    setSocialHandles(updated);
-                  }}
-                  placeholder="Platform"
-                  style={{
-                    flex: '0.5',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="text"
-                  value={handle.handle || ''}
-                  onChange={(e) => {
-                    const updated = [...socialHandles];
-                    updated[idx].handle = e.target.value;
-                    setSocialHandles(updated);
-                  }}
-                  placeholder="Handle"
-                  style={{
-                    flex: '1',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => setSocialHandles(socialHandles.filter((_, i) => i !== idx))}
-                  style={{
-                    padding: '10px 15px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setSocialHandles([...socialHandles, { platform: '', handle: '' }])}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              + Add Handle
-            </button>
-          </div>
-
-          {/* Emails */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Emails</h3>
-
-            {emails.map((email, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    const updated = [...emails];
-                    updated[idx] = e.target.value;
-                    setEmails(updated);
-                  }}
-                  placeholder="Email"
-                  style={{
-                    flex: '1',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => setEmails(emails.filter((_, i) => i !== idx))}
-                  style={{
-                    padding: '10px 15px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setEmails([...emails, ''])}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              + Add Email
-            </button>
-          </div>
-
-          {/* Phones */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Phone Numbers</h3>
-
-            {phones.map((phone, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => {
-                    const updated = [...phones];
-                    updated[idx] = e.target.value;
-                    setPhones(updated);
-                  }}
-                  placeholder="Phone"
-                  style={{
-                    flex: '1',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => setPhones(phones.filter((_, i) => i !== idx))}
-                  style={{
-                    padding: '10px 15px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setPhones([...phones, ''])}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              + Add Phone
-            </button>
-          </div>
-
-          {/* Websites */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Websites</h3>
-
-            {websites.map((website, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="url"
-                  value={website}
-                  onChange={(e) => {
-                    const updated = [...websites];
-                    updated[idx] = e.target.value;
-                    setWebsites(updated);
-                  }}
-                  placeholder="Website URL"
-                  style={{
-                    flex: '1',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => setWebsites(websites.filter((_, i) => i !== idx))}
-                  style={{
-                    padding: '10px 15px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setWebsites([...websites, ''])}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              + Add Website
-            </button>
-          </div>
-
-          {/* Portfolio */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Portfolio</h3>
-
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '10px' }}>
-              <input
-                type="checkbox"
-                checked={portfolio.enabled}
-                onChange={(e) => setPortfolio({ ...portfolio, enabled: e.target.checked })}
-                style={{ marginRight: '10px', width: '18px', height: '18px' }}
-              />
-              <span style={{ fontWeight: 'bold', color: '#333' }}>Enable Portfolio</span>
-            </label>
-
-            {portfolio.enabled && (
-              <input
-                type="url"
-                value={portfolio.url}
-                onChange={(e) => setPortfolio({ ...portfolio, url: e.target.value })}
-                placeholder="Portfolio URL"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #ddd',
-                  borderRadius: '5px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            )}
-          </div>
-
-          {/* Projects */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Projects</h3>
-
-            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginBottom: '10px' }}>
-              <input
-                type="checkbox"
-                checked={projects.enabled}
-                onChange={(e) => setProjects({ ...projects, enabled: e.target.checked })}
-                style={{ marginRight: '10px', width: '18px', height: '18px' }}
-              />
-              <span style={{ fontWeight: 'bold', color: '#333' }}>Enable Projects</span>
-            </label>
-
-            {projects.enabled && (
-              <>
-                {projects.list.map((project, idx) => (
-                  <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                    <input
-                      type="text"
-                      value={project.title}
-                      onChange={(e) => {
-                        const updated = [...projects.list];
-                        updated[idx].title = e.target.value;
-                        setProjects({ ...projects, list: updated });
-                      }}
-                      placeholder="Project Title"
-                      style={{
-                        flex: '0.6',
-                        padding: '10px',
-                        border: '1px solid #ddd',
-                        borderRadius: '5px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <input
-                      type="url"
-                      value={project.url}
-                      onChange={(e) => {
-                        const updated = [...projects.list];
-                        updated[idx].url = e.target.value;
-                        setProjects({ ...projects, list: updated });
-                      }}
-                      placeholder="Project URL"
-                      style={{
-                        flex: '0.8',
-                        padding: '10px',
-                        border: '1px solid #ddd',
-                        borderRadius: '5px',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                    <button
-                      onClick={() => setProjects({
-                        ...projects,
-                        list: projects.list.filter((_, i) => i !== idx)
-                      })}
-                      style={{
-                        padding: '10px 15px',
-                        background: '#dc2626',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '5px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  onClick={() => setProjects({
-                    ...projects,
-                    list: [...projects.list, { title: '', url: '' }]
-                  })}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    background: '#667eea',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  + Add Project
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Charity Links */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-          }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '15px', color: '#333' }}>Charity Links</h3>
-
-            {charityLinks.map((charity, idx) => (
-              <div key={idx} style={{ marginBottom: '10px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  value={charity.name}
-                  onChange={(e) => {
-                    const updated = [...charityLinks];
-                    updated[idx].name = e.target.value;
-                    setCharityLinks(updated);
-                  }}
-                  placeholder="Charity Name"
-                  style={{
-                    flex: '0.5',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <input
-                  type="url"
-                  value={charity.url}
-                  onChange={(e) => {
-                    const updated = [...charityLinks];
-                    updated[idx].url = e.target.value;
-                    setCharityLinks(updated);
-                  }}
-                  placeholder="Charity URL"
-                  style={{
-                    flex: '1',
-                    padding: '10px',
-                    border: '1px solid #ddd',
-                    borderRadius: '5px',
-                    boxSizing: 'border-box',
-                  }}
-                />
-                <button
-                  onClick={() => setCharityLinks(charityLinks.filter((_, i) => i !== idx))}
-                  style={{
-                    padding: '10px 15px',
-                    background: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            <button
-              onClick={() => setCharityLinks([...charityLinks, { name: '', url: '' }])}
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '5px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-              }}
-            >
-              + Add Charity
-            </button>
-          </div>
-
-          {/* Save Button */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '10px',
-          }}>
-            <button
-              onClick={saveProfile}
-              style={{
-                padding: '12px',
-                background: '#10B981',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              💾 Save Profile
-            </button>
-
-            <button
-              onClick={generateShareLink}
-              style={{
-                padding: '12px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
-              🔗 Share Link
-            </button>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -2319,34 +2316,20 @@ const LinksAndDM = () => {
   // INBOX PAGE
   if (currentView === 'inbox' && user) {
     return (
-      <div style={{
-        background: 'linear-gradient(135deg, #f5a6c5 0%, #a8d8ea 100%)',
-        minHeight: '100vh',
-        padding: '20px',
-        fontFamily: 'Arial, sans-serif',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg, #f5a6c5 0%, #a8d8ea 100%)', minHeight: '100vh', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           
           {/* Header */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '20px',
-            marginBottom: '20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '20px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <button
               onClick={() => setCurrentView('editor')}
               style={{
-                padding: '10px 15px',
+                padding: '10px 20px',
                 background: '#667eea',
                 color: 'white',
                 border: 'none',
                 borderRadius: '10px',
                 cursor: 'pointer',
-                fontWeight: 'bold',
               }}
             >
               ← Back
@@ -2356,16 +2339,8 @@ const LinksAndDM = () => {
           </div>
 
           {/* Filter Buttons */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '15px',
-            marginBottom: '20px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-          }}>
-            {['all', 'priority'].map((filter) => (
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '15px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {['all', 'priority', 'booking', 'connect', 'collab', 'fans'].map((filter) => (
               <button
                 key={filter}
                 onClick={() => setInboxFilter(filter)}
@@ -2382,20 +2357,18 @@ const LinksAndDM = () => {
               >
                 {filter === 'all' && '💬 All'}
                 {filter === 'priority' && '⭐ Priority'}
+                {filter === 'booking' && '📅 Meeting'}
+                {filter === 'connect' && '💬 Connect'}
+                {filter === 'collab' && '🤝 Collab'}
+                {filter === 'fans' && '🌸 Fans'}
               </button>
             ))}
           </div>
 
           {/* Messages */}
           {getFilteredMessages().length === 0 ? (
-            <div style={{
-              background: 'rgba(255,255,255,0.95)',
-              borderRadius: '20px',
-              padding: '40px',
-              textAlign: 'center',
-              color: '#999',
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '10px' }}>📬</div>
+            <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '40px', textAlign: 'center', color: '#999' }}>
+              <div style={{ fontSize: '48px', marginBottom: '10px' }}>📭</div>
               <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>No messages yet</div>
               <div style={{ fontSize: '12px' }}>Messages will appear here when you share your profile!</div>
             </div>
@@ -2419,7 +2392,7 @@ const LinksAndDM = () => {
                       </div>
                       <div style={{ fontSize: '12px', color: '#999' }}>{msg.senderContact}</div>
                     </div>
-                    <div style={{ fontSize: '18px' }}>{msg.messageType}</div>
+                    <div style={{ fontSize: '18px' }}>{msg.emoji}</div>
                   </div>
                   <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.5' }}>{msg.message}</div>
                   <div style={{ fontSize: '11px', color: '#999', marginTop: '10px' }}>
@@ -2437,4 +2410,19 @@ const LinksAndDM = () => {
   return null;
 };
 
-export default LinksAndDM;
+function App() {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<LoadingSpinner />}>
+        <Router>
+          <Routes>
+            <Route path="/" element={<LinksAndDM />} />
+            <Route path="/:username" element={<ProfilePage />} />
+          </Routes>
+        </Router>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+export default App;
