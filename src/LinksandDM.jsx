@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
-import {
-  collection, addDoc, getDocs, query, orderBy, updateDoc, doc, getDoc, setDoc, where
-} from 'firebase/firestore';
-import {
-  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged
-} from 'firebase/auth';
+import { collection, addDoc, getDocs, query, orderBy, updateDoc, doc, getDoc, setDoc, where } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 
 const LinksAndDM = () => {
   const [currentView, setCurrentView] = useState('landing');
@@ -39,7 +35,7 @@ const LinksAndDM = () => {
     profilePic: null,
     selectedTheme: 0,
     username: '',
-    customTheme: { start: '#40E0D0', end: '#20B2AA' },
+    customTheme: { start: '#40E0D0', end: '#20B2AA' }
   });
 
   const [buttonColors, setButtonColors] = useState({
@@ -57,7 +53,7 @@ const LinksAndDM = () => {
 
   const [dmButtons, setDmButtons] = useState({
     bookMeeting: { enabled: true, label: 'Book a Meeting', calendarLink: '', icon: '📅', emojiTag: '📅' },
-    letsConnect: { enabled: true, label: "Let's Connect", icon: '💬', emojiTag: '💬' },
+    letsConnect: { enabled: true, label: 'Let\'s Connect', icon: '💬', emojiTag: '💬' },
     collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝', emojiTag: '🤝' },
     supportCause: { enabled: true, label: 'Support a Cause', icon: '❤️', emojiTag: '❤️' },
   });
@@ -69,7 +65,6 @@ const LinksAndDM = () => {
     contact: [{ phone: '' }],
     website: [{ url: '' }],
   });
-
   const [portfolio, setPortfolio] = useState({ enabled: true, url: '' });
   const [projects, setProjects] = useState({ enabled: true, list: [{ title: '', url: '' }] });
   const [priorityContacts, setPriorityContacts] = useState([{ handle: '@yourfriend' }]);
@@ -92,44 +87,6 @@ const LinksAndDM = () => {
     { name: 'Custom', gradient: `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` },
   ];
 
-  // Utils
-  const formatUrl = (url) => {
-    if (!url) return '#';
-    return url.startsWith('http') ? url : `https://${url}`;
-  };
-
-  const getSocialMediaUrl = (platform, handle) => {
-    if (!handle) return '#';
-    const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
-    const platformUrls = {
-      'Instagram': `https://instagram.com/${cleanHandle}`,
-      'TikTok': `https://tiktok.com/@${cleanHandle}`,
-      'Twitter': `https://twitter.com/${cleanHandle}`,
-      'X': `https://twitter.com/${cleanHandle}`,
-      'Facebook': `https://facebook.com/${cleanHandle}`,
-      'LinkedIn': `https://linkedin.com/in/${cleanHandle}`,
-      'YouTube': `https://youtube.com/@${cleanHandle}`,
-      'Pinterest': `https://pinterest.com/${cleanHandle}`,
-      'Snapchat': `https://snapchat.com/add/${cleanHandle}`,
-      'Discord': `https://discord.com/users/${cleanHandle}`,
-      'Twitch': `https://twitch.tv/${cleanHandle}`,
-      'Reddit': `https://reddit.com/u/${cleanHandle}`,
-      'BeReal': `https://bereal.com/${cleanHandle}`,
-      'Bluesky': `https://bsky.app/profile/${cleanHandle}`,
-      'Mastodon': `https://${cleanHandle}`,
-    };
-    return platformUrls[platform] || formatUrl(cleanHandle);
-  };
-
-  const isPriority = (contactInfo) => {
-    return priorityContacts.some(pc =>
-      pc.handle.toLowerCase().includes(contactInfo.toLowerCase()) ||
-      contactInfo.toLowerCase().includes(pc.handle.toLowerCase())
-    );
-  };
-
-  const getSenderTag = (contactInfo) => isPriority(contactInfo) ? '⭐' : '🌸';
-
   // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -143,18 +100,16 @@ const LinksAndDM = () => {
     return () => unsubscribe();
   }, []);
 
-  // Load profile from URL for public preview
+  // Check URL for public preview
   useEffect(() => {
     const path = window.location.pathname;
-    if (path.startsWith('/user/')) {
+    if (path.includes('/user/')) {
       const username = path.split('/user/')[1].split('/')[0];
       setIsPublicPreview(true);
-      setCurrentView('preview');
       loadProfileByUsername(username);
     }
   }, []);
 
-  // Handle authentication
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -179,33 +134,32 @@ const LinksAndDM = () => {
     setCurrentView('landing');
   };
 
-  // Load profile by username (public)
   const loadProfileByUsername = async (username) => {
     try {
       setLoadingProfile(true);
       const profilesRef = collection(db, 'profiles');
       const q = query(profilesRef, where('username', '==', username));
       const querySnapshot = await getDocs(q);
+
       if (!querySnapshot.empty) {
         const data = querySnapshot.docs[0].data();
-        applyProfileData(data);
-      }
-      setLoadingProfile(false);
-    } catch (error) {
-      console.error('Error loading public profile:', error);
-      setLoadingProfile(false);
-    }
-  };
-
-  // Load profile from Firestore (private)
-  const loadProfileFromFirebase = async (id) => {
-    try {
-      setLoadingProfile(true);
-      const profileRef = doc(db, 'profiles', id);
-      const profileSnap = await getDoc(profileRef);
-      if (profileSnap.exists()) {
-        const data = profileSnap.data();
-        applyProfileData(data);
+        setProfile(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          businessProfession: data.businessProfession || prev.businessProfession,
+          bio: data.bio || prev.bio,
+          profilePic: data.profilePic || prev.profilePic,
+          selectedTheme: data.selectedTheme || 0,
+          username: data.username || '',
+          customTheme: data.customTheme || prev.customTheme
+        }));
+        setDmButtons(data.dmButtons || dmButtons);
+        setCategory(data.categoryButtons || categoryButtons);
+        setCharityLinks(data.charityLinks || charityLinks);
+        setPortfolio(data.portfolio || portfolio);
+        setProjects(data.projects || projects);
+        setPriorityContacts(data.priorityContacts || priorityContacts);
+        setButtonColors(data.buttonColors || buttonColors);
       }
       setLoadingProfile(false);
     } catch (error) {
@@ -214,27 +168,39 @@ const LinksAndDM = () => {
     }
   };
 
-  const applyProfileData = (data) => {
-    setProfile(prev => ({
-      ...prev,
-      name: data.name || prev.name,
-      businessProfession: data.businessProfession || prev.businessProfession,
-      bio: data.bio || prev.bio,
-      profilePic: data.profilePic || prev.profilePic,
-      selectedTheme: data.selectedTheme || 0,
-      username: data.username || '',
-      customTheme: data.customTheme || prev.customTheme,
-    }));
-    setDmButtons(data.dmButtons || dmButtons);
-    setCategory(data.categoryButtons || categoryButtons);
-    setCharityLinks(data.charityLinks || charityLinks);
-    setPortfolio(data.portfolio || portfolio);
-    setProjects(data.projects || projects);
-    setPriorityContacts(data.priorityContacts || priorityContacts);
-    setButtonColors(data.buttonColors || buttonColors);
+  const loadProfileFromFirebase = async (id) => {
+    try {
+      setLoadingProfile(true);
+      const profileRef = doc(db, 'profiles', id);
+      const profileSnap = await getDoc(profileRef);
+
+      if (profileSnap.exists()) {
+        const data = profileSnap.data();
+        setProfile(prev => ({
+          ...prev,
+          name: data.name || prev.name,
+          businessProfession: data.businessProfession || prev.businessProfession,
+          bio: data.bio || prev.bio,
+          profilePic: data.profilePic || prev.profilePic,
+          selectedTheme: data.selectedTheme || 0,
+          username: data.username || '',
+          customTheme: data.customTheme || prev.customTheme
+        }));
+        setDmButtons(data.dmButtons || dmButtons);
+        setCategory(data.categoryButtons || categoryButtons);
+        setCharityLinks(data.charityLinks || charityLinks);
+        setPortfolio(data.portfolio || portfolio);
+        setProjects(data.projects || projects);
+        setPriorityContacts(data.priorityContacts || priorityContacts);
+        setButtonColors(data.buttonColors || buttonColors);
+      }
+      setLoadingProfile(false);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      setLoadingProfile(false);
+    }
   };
 
-  // Save profile to Firestore
   const saveProfileToFirebase = async () => {
     if (!profileId) return;
     try {
@@ -247,13 +213,13 @@ const LinksAndDM = () => {
         selectedTheme: profile.selectedTheme,
         username: profile.username,
         customTheme: profile.customTheme,
-        dmButtons,
-        categoryButtons,
-        charityLinks,
-        portfolio,
-        projects,
-        priorityContacts,
-        buttonColors,
+        dmButtons: dmButtons,
+        categoryButtons: categoryButtons,
+        charityLinks: charityLinks,
+        portfolio: portfolio,
+        projects: projects,
+        priorityContacts: priorityContacts,
+        buttonColors: buttonColors,
         updatedAt: new Date(),
       }, { merge: true });
     } catch (error) {
@@ -261,14 +227,14 @@ const LinksAndDM = () => {
     }
   };
 
-  // Generate share link
   const generateShareLink = async () => {
-    if (!profile.username.trim()) {
+    if (!profile.username) {
       alert('Please set a username first');
       return;
     }
     await saveProfileToFirebase();
-    const link = `${window.location.origin}/user/${profile.username}`;
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/user/${profile.username}`;
     setShareLink(link);
     setShowShareModal(true);
   };
@@ -279,7 +245,6 @@ const LinksAndDM = () => {
     setTimeout(() => setCopySuccess(false), 2000);
   };
 
-  // Load messages
   useEffect(() => {
     if (!profileId) return;
     const loadMessagesFromFirestore = async () => {
@@ -302,7 +267,6 @@ const LinksAndDM = () => {
     loadMessagesFromFirestore();
   }, [profileId]);
 
-  // Save message
   const saveMessageToFirestore = async (newMessage) => {
     if (!profileId) return;
     try {
@@ -321,13 +285,24 @@ const LinksAndDM = () => {
     }
   };
 
-  // Handle message submit
+  const isPriority = (contactInfo) => {
+    return priorityContacts.some(pc =>
+      pc.handle.toLowerCase().includes(contactInfo.toLowerCase()) ||
+      contactInfo.toLowerCase().includes(pc.handle.toLowerCase())
+    );
+  };
+
+  const getSenderTag = (contactInfo) => {
+    return isPriority(contactInfo) ? '⭐' : '🌸';
+  };
+
   const handleMessageSubmit = (e) => {
     e.preventDefault();
     if (!formData.name || !formData.contactInfo || !formData.message) {
       alert('Please fill in all fields');
       return;
     }
+
     const newMessage = {
       name: formData.name,
       contact: formData.contactInfo,
@@ -337,6 +312,7 @@ const LinksAndDM = () => {
       timestamp: new Date().toISOString(),
       starred: false,
     };
+
     saveMessageToFirestore(newMessage);
     setMessages([newMessage, ...messages]);
     setFormData({ name: '', contactInfo: '', message: '' });
@@ -346,10 +322,11 @@ const LinksAndDM = () => {
   };
 
   const toggleStar = async (index) => {
+    const msg = messages[index];
     const updatedMessages = [...messages];
     updatedMessages[index].starred = !updatedMessages[index].starred;
     setMessages(updatedMessages);
-    const msg = messages[index];
+
     if (msg.id) {
       const messageRef = doc(db, 'profiles', profileId, 'messages', msg.id);
       await updateDoc(messageRef, { starred: updatedMessages[index].starred });
@@ -372,15 +349,17 @@ const LinksAndDM = () => {
     return new Date(b.timestamp) - new Date(a.timestamp);
   });
 
-  // Profile handlers
-  const handleProfileChange = (field, value) =>
+  const handleProfileChange = (field, value) => {
     setProfile(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleProfilePicUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event) => setProfile(prev => ({ ...prev, profilePic: event.target.result }));
+      reader.onload = (event) => {
+        setProfile(prev => ({ ...prev, profilePic: event.target.result }));
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -411,13 +390,45 @@ const LinksAndDM = () => {
     }));
   };
 
-  // MODALS
+  const formatUrl = (url) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('mailto:') || url.startsWith('tel:')) {
+      return url;
+    }
+    return `https://${url}`;
+  };
+
+  const getSocialMediaUrl = (platform, handle) => {
+    if (!handle) return '';
+    const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
+    const platformUrls = {
+      'Instagram': `https://instagram.com/${cleanHandle}`,
+      'TikTok': `https://tiktok.com/@${cleanHandle}`,
+      'Twitter': `https://twitter.com/${cleanHandle}`,
+      'X': `https://twitter.com/${cleanHandle}`,
+      'Facebook': `https://facebook.com/${cleanHandle}`,
+      'LinkedIn': `https://linkedin.com/in/${cleanHandle}`,
+      'YouTube': `https://youtube.com/@${cleanHandle}`,
+      'Pinterest': `https://pinterest.com/${cleanHandle}`,
+      'Snapchat': `https://snapchat.com/add/${cleanHandle}`,
+      'Discord': `https://discord.com/users/${cleanHandle}`,
+      'Twitch': `https://twitch.tv/${cleanHandle}`,
+      'Reddit': `https://reddit.com/u/${cleanHandle}`,
+      'BeReal': `https://bereal.com/${cleanHandle}`,
+      'Bluesky': `https://bsky.app/profile/${cleanHandle}`,
+      'Mastodon': `https://${cleanHandle}`,
+    };
+    return platformUrls[platform] || `https://${cleanHandle}`;
+  };
+
+  // AUTH MODAL
   const AuthModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-purple-600 mb-6">
-          {isLogin ? '🔓 Login' : '🎉 Sign Up'}
-        </h2>
+        <h2 className="text-3xl font-bold text-purple-600 mb-6">{isLogin ? '🔓 Login' : '🎉 Sign Up'}</h2>
         {authError && <p className="text-red-500 mb-4">{authError}</p>}
         <form onSubmit={handleAuth} className="space-y-4">
           <input
@@ -448,6 +459,7 @@ const LinksAndDM = () => {
     </div>
   );
 
+  // SHARE MODAL
   const ShareModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
@@ -461,6 +473,7 @@ const LinksAndDM = () => {
     </div>
   );
 
+  // COLOR SETTINGS MODAL
   const ColorSettingsModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-3xl p-8 max-w-2xl w-full my-8">
@@ -472,50 +485,26 @@ const LinksAndDM = () => {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="text-sm text-gray-600">Background</label>
-                  <input
-                    type="color"
-                    value={buttonColors[key].bg}
-                    onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], bg: e.target.value } }))}
-                    className="w-full h-10 rounded cursor-pointer"
-                  />
+                  <input type="color" value={buttonColors[key].bg} onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], bg: e.target.value } }))} className="w-full h-10 rounded cursor-pointer" />
                 </div>
                 <div className="flex-1">
                   <label className="text-sm text-gray-600">Text</label>
-                  <input
-                    type="color"
-                    value={buttonColors[key].text}
-                    onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], text: e.target.value } }))}
-                    className="w-full h-10 rounded cursor-pointer"
-                  />
+                  <input type="color" value={buttonColors[key].text} onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], text: e.target.value } }))} className="w-full h-10 rounded cursor-pointer" />
                 </div>
               </div>
-              <div
-                style={{ backgroundColor: buttonColors[key].bg, color: buttonColors[key].text }}
-                className="p-3 rounded-xl text-center font-bold"
-              >
-                Preview
-              </div>
+              <div style={{ backgroundColor: buttonColors[key].bg, color: buttonColors[key].text }} className="p-3 rounded-xl text-center font-bold">Preview</div>
             </div>
           ))}
         </div>
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => { saveProfileToFirebase(); setShowColorSettings(false); }}
-            className="flex-1 bg-purple-600 text-white p-3 rounded-xl font-bold"
-          >
-            Save
-          </button>
-          <button
-            onClick={() => setShowColorSettings(false)}
-            className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-xl font-bold"
-          >
-            Close
-          </button>
+          <button onClick={() => { saveProfileToFirebase(); setShowColorSettings(false); }} className="flex-1 bg-purple-600 text-white p-3 rounded-xl font-bold">Save</button>
+          <button onClick={() => setShowColorSettings(false)} className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-xl font-bold">Close</button>
         </div>
       </div>
     </div>
   );
 
+  // CUSTOM THEME MODAL
   const CustomThemeModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
@@ -523,44 +512,17 @@ const LinksAndDM = () => {
         <div className="space-y-4">
           <div>
             <label className="font-bold">Start Color</label>
-            <input
-              type="color"
-              value={profile.customTheme.start}
-              onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, start: e.target.value } }))}
-              className="w-full h-12 rounded cursor-pointer"
-            />
+            <input type="color" value={profile.customTheme.start} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, start: e.target.value } }))} className="w-full h-12 rounded cursor-pointer" />
           </div>
           <div>
             <label className="font-bold">End Color</label>
-            <input
-              type="color"
-              value={profile.customTheme.end}
-              onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, end: e.target.value } }))}
-              className="w-full h-12 rounded cursor-pointer"
-            />
+            <input type="color" value={profile.customTheme.end} onChange={(e) => setProfile(prev => ({ ...prev, customTheme: { ...prev.customTheme, end: e.target.value } }))} className="w-full h-12 rounded cursor-pointer" />
           </div>
-          <div
-            style={{ background: `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` }}
-            className="h-24 rounded-xl"
-          ></div>
+          <div style={{ background: `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` }} className="h-24 rounded-xl"></div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button
-            onClick={() => {
-              handleProfileChange('selectedTheme', 12);
-              saveProfileToFirebase();
-              setShowCustomTheme(false);
-            }}
-            className="flex-1 bg-purple-600 text-white p-3 rounded-xl font-bold"
-          >
-            Apply
-          </button>
-          <button
-            onClick={() => setShowCustomTheme(false)}
-            className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-xl font-bold"
-          >
-            Cancel
-          </button>
+          <button onClick={() => { handleProfileChange('selectedTheme', 12); saveProfileToFirebase(); setShowCustomTheme(false); }} className="flex-1 bg-purple-600 text-white p-3 rounded-xl font-bold">Apply</button>
+          <button onClick={() => setShowCustomTheme(false)} className="flex-1 bg-gray-300 text-gray-700 p-3 rounded-xl font-bold">Cancel</button>
         </div>
       </div>
     </div>
@@ -570,27 +532,41 @@ const LinksAndDM = () => {
   if (currentView === 'landing') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; } .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }`}</style>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap');
+          .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; }
+          .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; }
+          .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }
+          .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+        `}</style>
         <div className="max-w-6xl mx-auto">
+          {/* Header */}
           <div className="flex justify-between items-center mb-12">
-            <h1 className="heading-lg text-5xl text-white drop-shadow-2xl" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.2)' }}>🔗 Links & DM 💬</h1>
+            <h1 className="heading-lg text-5xl text-white drop-shadow-2xl" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.2)' }}>
+              🔗 Links & DM 💬
+            </h1>
             <button
-              onClick={() => (user ? setCurrentView('editor') : setShowAuth(true))}
+              onClick={() => setShowAuth(true)}
               className="bg-white text-purple-600 px-10 py-4 rounded-full font-bold text-xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200"
             >
               Let's Do It!
             </button>
           </div>
-
+          {/* Center Hero Section */}
           <div className="text-center mb-20">
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>One Link.</h1>
             <h1 className="heading-xl text-8xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '4px 4px 0px rgba(0,0,0,0.3)', letterSpacing: '-2px', lineHeight: '1' }}>Sorted DMs.</h1>
-            <p className="text-2xl font-bold text-white drop-shadow-lg mb-3" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>The Ultimate Link-in-Bio for Creators 🌟</p>
-            <p className="text-xl font-bold text-white drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Manage all your links, messages & projects in one beautiful place</p>
+            <p className="text-2xl font-bold text-white drop-shadow-lg mb-3" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>
+              The Ultimate Link-in-Bio for Creators 🌟
+            </p>
+            <p className="text-xl font-bold text-white drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>
+              Manage all your links, messages & projects in one beautiful place
+            </p>
           </div>
-
+          {/* Feature Cards - 2x3 Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mb-16">
-            {[{ emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'from-pink-500 to-rose-500' },
+            {[
+              { emoji: '💬', title: 'Smart DM Sorting', desc: 'Organize all messages intelligently', gradient: 'from-pink-500 to-rose-500' },
               { emoji: '🎨', title: '12 Beautiful Themes', desc: 'Choose your perfect vibe', gradient: 'from-purple-500 to-indigo-500' },
               { emoji: '📱', title: 'All Socials in One', desc: 'Connect all your platforms instantly', gradient: 'from-cyan-500 to-blue-500' },
               { emoji: '📧', title: 'Email Hub', desc: 'Never miss important emails', gradient: 'from-blue-500 to-cyan-400' },
@@ -604,11 +580,13 @@ const LinksAndDM = () => {
               </div>
             ))}
           </div>
-
+          {/* CTA Section */}
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl border-4 border-white p-10 max-w-2xl mx-auto text-center drop-shadow-2xl">
-            <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>Transform Your Link-in-Bio Today 🚀</h3>
+            <h3 className="heading-md text-4xl text-white mb-8 drop-shadow-lg" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.2)' }}>
+              Transform Your Link-in-Bio Today 🚀
+            </h3>
             <button
-              onClick={() => (user ? setCurrentView('editor') : setShowAuth(true))}
+              onClick={() => setShowAuth(true)}
               className="bg-white text-purple-600 px-12 py-5 rounded-3xl font-bold text-2xl hover:shadow-2xl transition transform hover:scale-110 drop-shadow-lg w-full mb-4 border-4 border-purple-200"
             >
               Get Started Now
@@ -621,13 +599,462 @@ const LinksAndDM = () => {
               See Demo ✨
             </button>
           </div>
-
           <div className="text-center mt-16 text-white drop-shadow-lg">
             <p className="font-bold text-xl drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Trusted by Influencers, Celebrities & Brands 💎</p>
           </div>
         </div>
-
         {showAuth && <AuthModal />}
+      </div>
+    );
+  }
+
+  // PREVIEW PAGE (Public)
+  if (currentView === 'preview') {
+    const theme = themes[profile.selectedTheme];
+    const bgStyle = { background: theme.gradient };
+
+    return (
+      <div className="min-h-screen p-8" style={bgStyle}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap');
+          .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }
+          .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+        `}</style>
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-10">
+            <h1 className="heading-xl text-4xl text-white drop-shadow-lg mb-2">🔗 Links&Dm 💬</h1>
+            <p className="text-white text-lg font-bold drop-shadow-lg">Connect • Collaborate • Create</p>
+          </div>
+          <div className="text-center mb-10">
+            {profile.profilePic ? (
+              <img src={profile.profilePic} alt="Profile" className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 object-cover drop-shadow-lg" />
+            ) : (
+              <div className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 bg-white/20 flex items-center justify-center text-7xl drop-shadow-lg">📸</div>
+            )}
+            <h2 className="heading-xl text-4xl text-white drop-shadow-lg mb-1">{profile.name}</h2>
+            <p className="text-white font-bold text-xl drop-shadow-lg mb-3">{profile.businessProfession}</p>
+            <p className="text-white/95 text-base drop-shadow-lg font-semibold">{profile.bio}</p>
+          </div>
+          {/* Main DM Buttons */}
+          <div className="space-y-3 mb-5">
+            {dmButtons.bookMeeting.enabled && (
+              <button
+                onClick={() => openMessageForm('bookMeeting')}
+                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
+                style={{ backgroundColor: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">📅</span>
+                <span className="font-bold">{dmButtons.bookMeeting.label}</span>
+              </button>
+            )}
+            {dmButtons.letsConnect.enabled && (
+              <button
+                onClick={() => openMessageForm('letsConnect')}
+                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
+                style={{ backgroundColor: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">💬</span>
+                <span className="font-bold">{dmButtons.letsConnect.label}</span>
+              </button>
+            )}
+            {dmButtons.collabRequest.enabled && (
+              <button
+                onClick={() => openMessageForm('collabRequest')}
+                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
+                style={{ backgroundColor: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">🤝</span>
+                <span className="font-bold">{dmButtons.collabRequest.label}</span>
+              </button>
+            )}
+            {dmButtons.supportCause.enabled && charityLinks.length > 0 && charityLinks.some(c => c.url) && (
+              <button
+                onClick={() => setShowModal('charities')}
+                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
+                style={{ backgroundColor: buttonColors.supportCause.bg, color: buttonColors.supportCause.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">❤️</span>
+                <span className="font-bold">{dmButtons.supportCause.label}</span>
+              </button>
+            )}
+          </div>
+          {/* Category Buttons - 2 Column Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {categoryButtons.handles.length > 0 && (
+              <button
+                onClick={() => setShowModal('handles')}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.handles.bg, color: buttonColors.handles.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">🌐</span>
+                <span className="text-xs leading-tight">@ Handles</span>
+              </button>
+            )}
+            {categoryButtons.email.length > 0 && (
+              <button
+                onClick={() => setShowModal('email')}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.email.bg, color: buttonColors.email.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">📧</span>
+                <span className="text-xs leading-tight">@ Email</span>
+              </button>
+            )}
+            {categoryButtons.contact.length > 0 && (
+              <button
+                onClick={() => setShowModal('contact')}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.contact.bg, color: buttonColors.contact.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">📱</span>
+                <span className="text-xs leading-tight">Contact</span>
+              </button>
+            )}
+            {categoryButtons.website.length > 0 && (
+              <button
+                onClick={() => setShowModal('website')}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.website.bg, color: buttonColors.website.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">🌍</span>
+                <span className="text-xs leading-tight">Website</span>
+              </button>
+            )}
+            {portfolio.enabled && (
+              <button
+                onClick={() => {
+                  if (portfolio.url) {
+                    const formattedUrl = formatUrl(portfolio.url);
+                    window.open(formattedUrl, '_blank');
+                  }
+                }}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.portfolio.bg, color: buttonColors.portfolio.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">🎨</span>
+                <span className="text-xs leading-tight">Portfolio</span>
+              </button>
+            )}
+            {projects.enabled && (
+              <button
+                onClick={() => setShowModal('projects')}
+                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
+                style={{ backgroundColor: buttonColors.projects.bg, color: buttonColors.projects.text }}
+              >
+                <span className="text-4xl drop-shadow-lg">📁</span>
+                <span className="text-xs leading-tight">Projects</span>
+              </button>
+            )}
+          </div>
+          <div className="text-center mt-10 text-white/90">
+            <p className="text-lg font-bold drop-shadow-lg mb-5">Ready to connect! 🚀</p>
+            <button
+              onClick={() => setCurrentView('landing')}
+              className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg mr-2"
+            >
+              ← Back
+            </button>
+            <button
+              onClick={() => setCurrentView('inbox')}
+              className="bg-white/40 backdrop-blur border-4 border-white text-white px-6 py-2 rounded-2xl font-bold text-base hover:bg-white/60 transition drop-shadow-lg"
+            >
+              📬 Inbox ({messages.length})
+            </button>
+          </div>
+        </div>
+
+        {/* Message Form Modal */}
+        {showMessageForm && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">Send Message</h3>
+                <button onClick={() => setShowMessageForm(false)} className="text-4xl font-black">×</button>
+              </div>
+              <form onSubmit={handleMessageSubmit} className="space-y-4">
+                <div>
+                  <label className="block font-bold text-sm mb-2">Name</label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="Your name"
+                    className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-sm mb-2">Email or Handle</label>
+                  <input
+                    type="text"
+                    value={formData.contactInfo}
+                    onChange={(e) => setFormData({...formData, contactInfo: e.target.value})}
+                    placeholder="email@example.com or @handle"
+                    className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-sm mb-2">Message</label>
+                  <textarea
+                    value={formData.message}
+                    onChange={(e) => setFormData({...formData, message: e.target.value})}
+                    placeholder="Your message..."
+                    className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm h-24 resize-none"
+                  />
+                </div>
+                <div className="bg-purple-100 rounded-xl p-3 text-center">
+                  <p className="text-sm font-bold text-gray-700">
+                    Message Type: <span className="text-2xl">{currentMessageType?.emojiTag}</span>
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105"
+                >
+                  Send Message
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Popup */}
+        {showConfirmation && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <div className="bg-white rounded-3xl p-8 drop-shadow-2xl border-4 border-green-400 animate-bounce">
+              <p className="text-4xl mb-3">✅</p>
+              <p className="text-xl font-bold text-gray-800">Message Sent!</p>
+              <p className="text-sm text-gray-600">You'll hear back soon 🎉</p>
+            </div>
+          </div>
+        )}
+
+        {/* Modals for Category Buttons */}
+        {showModal === 'handles' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">🌐 Handles</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {categoryButtons.handles.map((item, idx) => (
+                  <a
+                    key={idx}
+                    href={getSocialMediaUrl(item.platform, item.handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition cursor-pointer"
+                  >
+                    <p className="text-sm text-gray-600 font-bold">{item.platform}</p>
+                    <p className="text-lg font-bold text-blue-600 break-all hover:underline">{item.handle}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showModal === 'email' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">📧 Email</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {categoryButtons.email.map((item, idx) => (
+                  <a
+                    key={idx}
+                    href={`mailto:${item.email}`}
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition"
+                  >
+                    <p className="text-lg font-bold text-blue-600 break-all">{item.email}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showModal === 'contact' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">📱 Contact</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {categoryButtons.contact.map((item, idx) => (
+                  <a
+                    key={idx}
+                    href={`tel:${item.phone}`}
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-green-100 transition"
+                  >
+                    <p className="text-lg font-bold text-green-600 break-all">{item.phone}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showModal === 'website' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">🌍 Website</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {categoryButtons.website.map((item, idx) => (
+                  <a
+                    key={idx}
+                    href={formatUrl(item.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-purple-100 transition cursor-pointer"
+                  >
+                    <p className="text-lg font-bold text-purple-600 break-all hover:underline">{item.url}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showModal === 'projects' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">📁 Projects</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {projects.list.map((proj, idx) => (
+                  <a
+                    key={idx}
+                    href={formatUrl(proj.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-orange-100 transition cursor-pointer"
+                  >
+                    <p className="text-sm text-gray-600 font-bold">Project</p>
+                    <p className="text-lg font-bold text-orange-600 break-all hover:underline">{proj.title}</p>
+                    <p className="text-xs text-gray-500 break-all">{proj.url}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showModal === 'charities' && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="heading-xl text-2xl">❤️ Support a Cause</h3>
+                <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
+              </div>
+              <div className="space-y-3">
+                {charityLinks.filter(c => c.url).map((charity, idx) => (
+                  <a
+                    key={idx}
+                    href={formatUrl(charity.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block bg-gray-100 rounded-xl p-4 hover:bg-pink-100 transition cursor-pointer"
+                  >
+                    <p className="text-sm text-gray-600 font-bold">{charity.name || 'Charity'}</p>
+                    <p className="text-lg font-bold text-pink-600 break-all hover:underline">{charity.url}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // INBOX PAGE
+  if (currentView === 'inbox') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap');
+          .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }
+          .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+        `}</style>
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 mb-8">
+            <button
+              onClick={() => setCurrentView('preview')}
+              className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200"
+            >
+              ← Back
+            </button>
+            <h1 className="heading-xl text-4xl text-white drop-shadow-lg">📬 Messages</h1>
+          </div>
+          {/* Filter Tabs */}
+          <div className="bg-white rounded-3xl p-6 mb-6 shadow-xl">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'all', label: 'All', emoji: '' },
+                { key: 'priority', label: 'Priority', emoji: '⭐' },
+                { key: 'collab', label: 'Collab', emoji: '🤝' },
+                { key: 'meeting', label: 'Meeting', emoji: '📅' },
+                { key: 'connect', label: 'Connect', emoji: '💬' },
+                { key: 'fans', label: 'Fans', emoji: '🌸' },
+              ].map(filter => (
+                <button
+                  key={filter.key}
+                  onClick={() => setInboxFilter(filter.key)}
+                  className={`px-4 py-2 rounded-xl font-bold text-sm transition transform hover:scale-105 ${
+                    inboxFilter === filter.key
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  {filter.emoji} {filter.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Messages List */}
+          <div className="space-y-3">
+            {sortedMessages.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 text-center">
+                <p className="text-4xl mb-3">📭</p>
+                <p className="text-2xl font-bold text-gray-600">No messages yet</p>
+                <p className="text-sm text-gray-500 mt-2">Messages will appear here when you share your profile!</p>
+              </div>
+            ) : (
+              sortedMessages.map((msg, idx) => (
+                <div key={msg.id || idx} className="bg-white rounded-2xl p-4 shadow-lg border-4 border-purple-200 hover:shadow-xl transition">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-lg text-gray-800">{msg.name}</span>
+                        <span className="text-2xl">{msg.messageType}</span>
+                        {msg.starred && <span className="text-2xl">⭐</span>}
+                        <span className="text-xl">{msg.senderTag}</span>
+                      </div>
+                      <p className="text-xs text-gray-500">{msg.contact}</p>
+                    </div>
+                    <button
+                      onClick={() => toggleStar(idx)}
+                      className="text-2xl hover:scale-125 transition ml-2"
+                    >
+                      {msg.starred ? '⭐' : '☆'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-700 mb-2">{msg.message}</p>
+                  <p className="text-xs text-gray-400">{new Date(msg.timestamp).toLocaleString()}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     );
   }
@@ -640,20 +1067,36 @@ const LinksAndDM = () => {
     }
 
     return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui' }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; } .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }`}</style>
+      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800;900&family=Outfit:wght@600;700&display=swap');
+          .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 900; }
+          .heading-lg { font-family: 'Poppins', sans-serif; font-weight: 800; }
+          .heading-md { font-family: 'Poppins', sans-serif; font-weight: 700; }
+          .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }
+        `}</style>
         <div className="max-w-5xl mx-auto">
+          {/* Hero Title */}
           <div className="text-center mb-14">
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>One Link.</h1>
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>Sorted DMs</h1>
             <div className="flex justify-center gap-4">
-              <button onClick={() => setCurrentView('preview')} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
-              <button onClick={() => setCurrentView('inbox')} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
-              <button onClick={handleSignOut} className="bg-red-500 text-white px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg">Logout</button>
+              <button
+                onClick={() => setCurrentView('preview')}
+                className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200"
+              >
+                👁️ Preview
+              </button>
+              <button
+                onClick={() => setCurrentView('inbox')}
+                className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200"
+              >
+                📬 Inbox ({messages.length})
+              </button>
             </div>
           </div>
 
-          {/* Profile Section */}
+          {/* Section 1: Profile */}
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 mb-6 max-w-2xl mx-auto shadow-xl">
             <h2 className="heading-md text-4xl mb-6 text-purple-600">👤 Profile</h2>
             <div className="flex justify-center mb-6">
@@ -663,25 +1106,59 @@ const LinksAndDM = () => {
                 ) : (
                   <div className="w-40 h-40 rounded-full bg-purple-100 flex items-center justify-center border-4 border-purple-300 text-6xl hover:bg-purple-200 transition">📷</div>
                 )}
-                <input type="file" accept="image/*" onChange={handleProfilePicUpload} className="hidden" />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePicUpload}
+                  className="hidden"
+                />
               </label>
             </div>
             <div className="space-y-5">
-              <div><label className="block font-bold text-2xl mb-2">Name</label><input type="text" value={profile.name} onChange={(e) => handleProfileChange('name', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg" maxLength="50" /></div>
-              <div><label className="block font-bold text-2xl mb-2">Profession</label><input type="text" value={profile.businessProfession} onChange={(e) => handleProfileChange('businessProfession', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg" maxLength="50" /></div>
-              <div><label className="block font-bold text-2xl mb-2">Bio</label><textarea value={profile.bio} onChange={(e) => handleProfileChange('bio', e.target.value)} className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg h-24 resize-none" placeholder="Add your bio! 🎉" maxLength="200" /></div>
-              <div className="bg-blue-100 border-4 border-blue-400 rounded-2xl p-6">
-                <label className="font-bold text-2xl flex items-center gap-2">📱 Username</label>
+              <div>
+                <label className="block font-bold text-2xl mb-2">Name</label>
+                <input
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) => handleProfileChange('name', e.target.value)}
+                  className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg"
+                  maxLength="50"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-2xl mb-2">Profession</label>
+                <input
+                  type="text"
+                  value={profile.businessProfession}
+                  onChange={(e) => handleProfileChange('businessProfession', e.target.value)}
+                  className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg"
+                  maxLength="50"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-2xl mb-2">Bio</label>
+                <textarea
+                  value={profile.bio}
+                  onChange={(e) => handleProfileChange('bio', e.target.value)}
+                  className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg h-24 resize-none"
+                  placeholder="Add your bio! 🎉"
+                  maxLength="200"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-2xl mb-2">Username</label>
                 <input
                   type="text"
                   value={profile.username}
                   onChange={(e) => handleProfileChange('username', e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
                   placeholder="yourname"
-                  className="w-full bg-white p-3 border-2 border-blue-300 rounded-xl font-bold text-lg mt-2"
+                  className="w-full bg-gray-100 border-0 rounded-2xl p-3 font-bold text-lg"
                 />
+              </div>
+              <div>
                 <button
                   onClick={generateShareLink}
-                  className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-2xl font-bold text-lg mt-3 hover:shadow-xl transition"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105"
                 >
                   🔗 Generate Share Link
                 </button>
@@ -689,11 +1166,11 @@ const LinksAndDM = () => {
             </div>
           </div>
 
-          {/* DM Buttons */}
+          {/* Section 2: DM Buttons */}
           <div className="bg-gradient-to-br from-pink-500 to-rose-500 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="heading-md text-3xl text-white" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>💌 Smart DM Buttons</h2>
-              <button onClick={() => setShowColorSettings(true)} className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold hover:shadow-lg">🎨 Colors</button>
+              <h2 className="heading-md text-3xl text-white mb-8" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>💌 Smart DM Buttons</h2>
+              <button onClick={() => setShowColorSettings(true)} className="bg-white text-pink-600 px-4 py-2 rounded-xl font-bold">🎨 Colors</button>
             </div>
             <div className="space-y-4">
               {Object.entries(dmButtons).map(([key, btn]) => (
@@ -702,77 +1179,109 @@ const LinksAndDM = () => {
                     <input
                       type="checkbox"
                       checked={btn.enabled}
-                      onChange={() => setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], enabled: !prev[key].enabled } }))}
+                      onChange={() => setDmButtons(prev => ({
+                        ...prev,
+                        [key]: { ...prev[key], enabled: !prev[key].enabled }
+                      }))}
                       className="w-7 h-7 cursor-pointer"
                     />
                     <span className="text-4xl flex-shrink-0">{btn.icon}</span>
                     <input
                       type="text"
                       value={btn.label}
-                      onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], label: e.target.value } }))}
+                      onChange={(e) => setDmButtons(prev => ({
+                        ...prev,
+                        [key]: { ...prev[key], label: e.target.value }
+                      }))}
                       className="flex-1 border-0 bg-transparent font-bold text-lg min-w-0 truncate"
                       maxLength="25"
                     />
+                    {key === 'bookMeeting' && (
+                      <>
+                        <label className="block font-bold text-sm mb-1 text-gray-600">Calendar Link</label>
+                        <input
+                          type="text"
+                          placeholder="Calendly, Zoom, etc."
+                          value={btn.calendarLink}
+                          onChange={(e) => setDmButtons(prev => ({
+                            ...prev,
+                            [key]: { ...prev[key], calendarLink: e.target.value }
+                          }))}
+                          className="w-full border-2 border-gray-300 rounded-xl p-2 font-bold text-sm"
+                        />
+                      </>
+                    )}
+                    {key === 'supportCause' && (
+                      <>
+                        <label className="block font-bold text-sm mb-1 text-gray-600">Note: Add charities below</label>
+                      </>
+                    )}
                   </div>
-                  {key === 'bookMeeting' && btn.enabled && (
-                    <input
-                      type="text"
-                      placeholder="Calendly, Zoom, etc."
-                      value={btn.calendarLink}
-                      onChange={(e) => setDmButtons(prev => ({ ...prev, bookMeeting: { ...prev.bookMeeting, calendarLink: e.target.value } }))}
-                      className="w-full border-2 border-gray-300 rounded-xl p-2 font-bold text-sm"
-                    />
-                  )}
-                  {key === 'supportCause' && btn.enabled && <label className="block font-bold text-sm mb-1 text-gray-600">Note: Add charities below</label>}
+                  <button
+                    onClick={() => {
+                      const newButtons = { ...dmButtons };
+                      delete newButtons[key];
+                      setDmButtons(newButtons);
+                    }}
+                    className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm ml-auto"
+                  >
+                    ✕
+                  </button>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Charity Links */}
-          {dmButtons.supportCause.enabled && (
-            <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
-              <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>❤️ Charity / Cause Links</h2>
-              <div className="space-y-2 mb-4">
-                {charityLinks.map((charity, idx) => (
-                  <div key={idx} className="flex gap-2 w-full">
-                    <input
-                      type="text"
-                      value={charity.name}
-                      onChange={(e) => { const newList = [...charityLinks]; newList[idx].name = e.target.value; setCharityLinks(newList); }}
-                      placeholder="Cause name (e.g., Clean Water)"
-                      className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0"
-                    />
-                    <input
-                      type="url"
-                      value={charity.url}
-                      onChange={(e) => { const newList = [...charityLinks]; newList[idx].url = e.target.value; setCharityLinks(newList); }}
-                      placeholder="https://charity.org"
-                      className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate"
-                    />
-                    {charityLinks.length > 1 && (
-                      <button
-                        onClick={() => setCharityLinks(charityLinks.filter((_, i) => i !== idx))}
-                        className="bg-red-700 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-800"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {charityLinks.length < 5 && (
-                <button
-                  onClick={() => setCharityLinks([...charityLinks, { name: '', url: '' }])}
-                  className="w-full bg-white text-red-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
-                >
-                  + Add Charity Link
-                </button>
-              )}
+          {/* Section 2B: Charity Links */}
+          <div className="bg-gradient-to-br from-red-500 to-pink-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>❤️ Charity / Cause Links</h2>
+            <div className="space-y-2 mb-4">
+              {charityLinks.map((charity, idx) => (
+                <div key={idx} className="flex gap-2 w-full">
+                  <input
+                    type="text"
+                    value={charity.name}
+                    onChange={(e) => {
+                      const newList = [...charityLinks];
+                      newList[idx].name = e.target.value;
+                      setCharityLinks(newList);
+                    }}
+                    placeholder="Cause name (e.g., Clean Water)"
+                    className="w-24 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs flex-shrink-0"
+                  />
+                  <input
+                    type="url"
+                    value={charity.url}
+                    onChange={(e) => {
+                      const newList = [...charityLinks];
+                      newList[idx].url = e.target.value;
+                      setCharityLinks(newList);
+                    }}
+                    placeholder="https://charity.org"
+                    className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0 truncate"
+                  />
+                  {charityLinks.length > 1 && (
+                    <button
+                      onClick={() => setCharityLinks(charityLinks.filter((_, i) => i !== idx))}
+                      className="bg-red-700 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-800"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+            {charityLinks.length < 5 && (
+              <button
+                onClick={() => setCharityLinks([...charityLinks, { name: '', url: '' }])}
+                className="w-full bg-white text-red-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
+              >
+                + Add Charity Link
+              </button>
+            )}
+          </div>
 
-          {/* Social Handles */}
+          {/* Section 3: Social Handles */}
           <div className="bg-gradient-to-br from-purple-500 to-purple-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🌐 Social Handles</h2>
             <div className="space-y-2 mb-4">
@@ -813,7 +1322,7 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Email */}
+          {/* Section 4: Email */}
           <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📧 Email Addresses</h2>
             <div className="space-y-2 mb-4">
@@ -847,7 +1356,7 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Contact */}
+          {/* Section 5: Contact */}
           <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📱 Contact Numbers</h2>
             <div className="space-y-2 mb-4">
@@ -881,7 +1390,7 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Website */}
+          {/* Section 6: Website */}
           <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🌍 Website / Store</h2>
             <div className="space-y-2 mb-4">
@@ -915,11 +1424,16 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Portfolio */}
+          {/* Section 7: Portfolio */}
           <div className="bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🎨 Portfolio</h2>
             <div className="flex items-center gap-3 bg-white/95 rounded-xl px-4 py-3 mb-4">
-              <input type="checkbox" checked={portfolio.enabled} onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
+              <input
+                type="checkbox"
+                checked={portfolio.enabled}
+                onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))}
+                className="w-7 h-7 cursor-pointer"
+              />
               <label className="font-bold text-lg flex-1">Enable Portfolio</label>
             </div>
             {portfolio.enabled && (
@@ -933,11 +1447,16 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Projects */}
+          {/* Section 8: Projects */}
           <div className="bg-gradient-to-br from-orange-500 to-yellow-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📁 Latest Projects</h2>
             <div className="flex items-center gap-3 bg-white/95 rounded-xl px-4 py-3 mb-4">
-              <input type="checkbox" checked={projects.enabled} onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
+              <input
+                type="checkbox"
+                checked={projects.enabled}
+                onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))}
+                className="w-7 h-7 cursor-pointer"
+              />
               <label className="font-bold text-lg flex-1">Enable Projects</label>
             </div>
             {projects.enabled && (
@@ -948,20 +1467,31 @@ const LinksAndDM = () => {
                       <input
                         type="text"
                         value={proj.title}
-                        onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }}
+                        onChange={(e) => {
+                          const newList = [...projects.list];
+                          newList[idx].title = e.target.value;
+                          setProjects(prev => ({ ...prev, list: newList }));
+                        }}
                         placeholder="Title"
                         className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
                       />
                       <input
                         type="url"
                         value={proj.url}
-                        onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }}
+                        onChange={(e) => {
+                          const newList = [...projects.list];
+                          newList[idx].url = e.target.value;
+                          setProjects(prev => ({ ...prev, list: newList }));
+                        }}
                         placeholder="https://..."
                         className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
                       />
                       {projects.list.length > 1 && (
                         <button
-                          onClick={() => { const newList = projects.list.filter((_, i) => i !== idx); setProjects(prev => ({ ...prev, list: newList })); }}
+                          onClick={() => {
+                            const newList = projects.list.filter((_, i) => i !== idx);
+                            setProjects(prev => ({ ...prev, list: newList }));
+                          }}
                           className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600"
                         >
                           ✕
@@ -972,7 +1502,12 @@ const LinksAndDM = () => {
                 </div>
                 {projects.list.length < 5 && (
                   <button
-                    onClick={() => { setProjects(prev => ({ ...prev, list: [...prev.list, { title: '', url: '' }] })); }}
+                    onClick={() => {
+                      setProjects(prev => ({
+                        ...prev,
+                        list: [...prev.list, { title: '', url: '' }]
+                      }));
+                    }}
                     className="w-full bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
                   >
                     + Add Project
@@ -982,11 +1517,11 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Themes */}
+          {/* Section 9: Themes */}
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 mb-6 max-w-3xl mx-auto shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className="heading-md text-3xl mb-6 text-purple-600">🎨 Choose Theme</h2>
-              <button onClick={() => setShowCustomTheme(true)} className="bg-purple-600 text-white px-4 py-2 rounded-xl font-bold hover:shadow-lg">✨ Custom</button>
+              <button onClick={() => setShowCustomTheme(true)} className="bg-purple-600 text-white px-4 py-2 rounded-xl font-bold">✨ Custom</button>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-4">
               {themes.map((t, idx) => (
@@ -996,12 +1531,7 @@ const LinksAndDM = () => {
                   className={`h-24 rounded-2xl transition-all cursor-pointer font-bold text-white text-xs drop-shadow-lg ${
                     profile.selectedTheme === idx ? 'ring-4 ring-purple-600 ring-offset-2 scale-110' : 'ring-2 ring-gray-300 hover:scale-105'
                   }`}
-                  style={{
-                    background: idx === 12
-                      ? `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)`
-                      : t.gradient,
-                    textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-                  }}
+                  style={{ background: idx === 12 ? `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` : t.gradient, textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}
                   title={t.name}
                 >
                   {t.name}
@@ -1010,7 +1540,7 @@ const LinksAndDM = () => {
             </div>
           </div>
 
-          {/* Priority Contacts */}
+          {/* Section 10: Priority Contacts (Friends & Family) */}
           <div className="bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
             <h2 className="heading-md text-3xl text-white mb-3" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>⭐ Friends & Family (Priority Contacts)</h2>
             <p className="text-white font-bold text-sm mb-4">These contacts will be automatically starred as ⭐ in your inbox</p>
@@ -1020,7 +1550,11 @@ const LinksAndDM = () => {
                   <input
                     type="text"
                     value={contact.handle}
-                    onChange={(e) => { const newList = [...priorityContacts]; newList[idx].handle = e.target.value; setPriorityContacts(newList); }}
+                    onChange={(e) => {
+                      const newList = [...priorityContacts];
+                      newList[idx].handle = e.target.value;
+                      setPriorityContacts(newList);
+                    }}
                     placeholder="@handle or email"
                     className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
                   />
@@ -1045,422 +1579,19 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          <div className="flex gap-3 mt-6">
-            <button
-              onClick={saveProfileToFirebase}
-              className="flex-1 bg-green-500 text-white px-6 py-4 rounded-2xl font-bold text-xl hover:shadow-xl"
-            >
-              💾 Save All
-            </button>
+          <div className="text-center mb-6 text-white drop-shadow-lg">
+            <p className="font-bold text-xl drop-shadow-lg" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>Powered by Links & DM 💎</p>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={saveProfileToFirebase} className="flex-1 bg-green-500 text-white px-6 py-4 rounded-2xl font-bold text-xl hover:shadow-xl">💾 Save All</button>
+            <button onClick={handleSignOut} className="flex-1 bg-red-500 text-white px-6 py-4 rounded-2xl font-bold text-xl hover:shadow-xl">Logout</button>
           </div>
         </div>
 
-        {showAuth && <AuthModal />}
         {showShareModal && <ShareModal />}
         {showColorSettings && <ColorSettingsModal />}
         {showCustomTheme && <CustomThemeModal />}
-      </div>
-    );
-  }
-
-  // PREVIEW PAGE
-  if (currentView === 'preview') {
-    const selectedTheme = themes[profile.selectedTheme];
-    const bgStyle = {
-      background: profile.selectedTheme === 12
-        ? `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)`
-        : selectedTheme?.gradient || themes[0].gradient,
-    };
-
-    return (
-      <div className="min-h-screen p-8" style={bgStyle}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; } .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }`}</style>
-        <div className="max-w-md mx-auto">
-          {/* Owner-only navigation */}
-          {user && !isPublicPreview && (
-            <div className="flex justify-center gap-3 mb-6">
-              <button
-                onClick={() => setCurrentView('editor')}
-                className="bg-white text-purple-600 px-6 py-2 rounded-2xl font-bold text-sm hover:shadow-xl"
-              >
-                ← Edit
-              </button>
-              <button
-                onClick={() => setCurrentView('inbox')}
-                className="bg-white text-blue-600 px-6 py-2 rounded-2xl font-bold text-sm hover:shadow-xl"
-              >
-                📬 Inbox
-              </button>
-            </div>
-          )}
-
-          <div className="text-center mb-10">
-            <h1 className="heading-xl text-4xl text-white drop-shadow-lg mb-2">🔗 Links&Dm 💬</h1>
-            <p className="text-white text-lg font-bold drop-shadow-lg">Connect • Collaborate • Create</p>
-          </div>
-
-          <div className="text-center mb-10">
-            {profile.profilePic ? (
-              <img src={profile.profilePic} alt="Profile" className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 object-cover drop-shadow-lg" />
-            ) : (
-              <div className="w-44 h-44 rounded-full border-8 border-white shadow-2xl mx-auto mb-6 bg-white/20 flex items-center justify-center text-7xl drop-shadow-lg">📸</div>
-            )}
-            <h2 className="heading-xl text-4xl text-white drop-shadow-lg mb-1">{profile.name}</h2>
-            <p className="text-white font-bold text-xl drop-shadow-lg mb-3">{profile.businessProfession}</p>
-            <p className="text-white/95 text-base drop-shadow-lg font-semibold">{profile.bio}</p>
-          </div>
-
-          <div className="space-y-3 mb-5">
-            {dmButtons.bookMeeting.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.bookMeeting); setShowMessageForm(true); }}
-                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
-                style={{ backgroundColor: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">📅</span>
-                <span className="font-bold">{dmButtons.bookMeeting.label}</span>
-              </button>
-            )}
-            {dmButtons.letsConnect.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.letsConnect); setShowMessageForm(true); }}
-                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
-                style={{ backgroundColor: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">💬</span>
-                <span className="font-bold">{dmButtons.letsConnect.label}</span>
-              </button>
-            )}
-            {dmButtons.collabRequest.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.collabRequest); setShowMessageForm(true); }}
-                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
-                style={{ backgroundColor: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">🤝</span>
-                <span className="font-bold">{dmButtons.collabRequest.label}</span>
-              </button>
-            )}
-            {dmButtons.supportCause.enabled && charityLinks.some(c => c.url) && (
-              <button
-                onClick={() => setShowModal('charities')}
-                className="w-full rounded-3xl py-5 px-6 font-bold text-lg text-white hover:shadow-2xl transform hover:scale-105 transition drop-shadow-xl border-4 border-white/50 flex items-center gap-3"
-                style={{ backgroundColor: buttonColors.supportCause.bg, color: buttonColors.supportCause.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">❤️</span>
-                <span className="font-bold">{dmButtons.supportCause.label}</span>
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {categoryButtons.handles.some(h => h.handle) && (
-              <button
-                onClick={() => setShowModal('handles')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.handles.bg, color: buttonColors.handles.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">🌐</span>
-                <span className="text-xs leading-tight">@ Handles</span>
-              </button>
-            )}
-            {categoryButtons.email.some(e => e.email) && (
-              <button
-                onClick={() => setShowModal('email')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.email.bg, color: buttonColors.email.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">📧</span>
-                <span className="text-xs leading-tight">@ Email</span>
-              </button>
-            )}
-            {categoryButtons.contact.some(c => c.phone) && (
-              <button
-                onClick={() => setShowModal('contact')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.contact.bg, color: buttonColors.contact.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">📱</span>
-                <span className="text-xs leading-tight">Contact</span>
-              </button>
-            )}
-            {categoryButtons.website.some(w => w.url) && (
-              <button
-                onClick={() => setShowModal('website')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.website.bg, color: buttonColors.website.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">🌍</span>
-                <span className="text-xs leading-tight">Website</span>
-              </button>
-            )}
-            {portfolio.enabled && portfolio.url && (
-              <button
-                onClick={() => setShowModal('portfolio')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.portfolio.bg, color: buttonColors.portfolio.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">🎨</span>
-                <span className="text-xs leading-tight">Portfolio</span>
-              </button>
-            )}
-            {projects.enabled && projects.list.some(p => p.url) && (
-              <button
-                onClick={() => setShowModal('projects')}
-                className="rounded-3xl py-5 px-3 font-bold text-sm hover:shadow-2xl transform hover:scale-105 transition drop-shadow-lg border-4 border-white/50 flex flex-col items-center gap-1"
-                style={{ backgroundColor: buttonColors.projects.bg, color: buttonColors.projects.text }}
-              >
-                <span className="text-4xl drop-shadow-lg">📁</span>
-                <span className="text-xs leading-tight">Projects</span>
-              </button>
-            )}
-          </div>
-
-          {/* Message Form */}
-          {showMessageForm && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">Send Message</h3>
-                  <button onClick={() => setShowMessageForm(false)} className="text-4xl font-black">×</button>
-                </div>
-                <form onSubmit={handleMessageSubmit} className="space-y-4">
-                  <div><label className="block font-bold text-sm mb-2">Name</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Your name" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm" /></div>
-                  <div><label className="block font-bold text-sm mb-2">Email or Handle</label><input type="text" value={formData.contactInfo} onChange={(e) => setFormData({...formData, contactInfo: e.target.value})} placeholder="email@example.com or @handle" className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm" /></div>
-                  <div><label className="block font-bold text-sm mb-2">Message</label><textarea value={formData.message} onChange={(e) => setFormData({...formData, message: e.target.value})} placeholder="Your message..." className="w-full border-2 border-gray-300 rounded-xl p-3 font-bold text-sm h-24 resize-none" /></div>
-                  <div className="bg-purple-100 rounded-xl p-3 text-center"><p className="text-sm font-bold text-gray-700">Message Type: <span className="text-2xl">{currentMessageType?.emojiTag}</span></p></div>
-                  <button type="submit" className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg hover:shadow-xl transition transform hover:scale-105">Send Message</button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Confirmation */}
-          {showConfirmation && (
-            <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-              <div className="bg-white rounded-3xl p-8 drop-shadow-2xl border-4 border-green-400 animate-bounce">
-                <p className="text-4xl mb-3">✅</p>
-                <p className="text-xl font-bold text-gray-800">Message Sent!</p>
-                <p className="text-sm text-gray-600">You'll hear back soon 🎉</p>
-              </div>
-            </div>
-          )}
-
-          {/* MODALS */}
-          {showModal === 'handles' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">🌐 Handles</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {categoryButtons.handles.filter(h => h.handle).map((item, idx) => (
-                    <a key={idx} href={getSocialMediaUrl(item.platform, item.handle)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition cursor-pointer">
-                      <p className="text-sm text-gray-600 font-bold">{item.platform}</p>
-                      <p className="text-lg font-bold text-blue-600 break-all hover:underline">{item.handle}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'email' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">📧 Email</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {categoryButtons.email.filter(e => e.email).map((item, idx) => (
-                    <a key={idx} href={`mailto:${item.email}`} className="block bg-gray-100 rounded-xl p-4 hover:bg-blue-100 transition">
-                      <p className="text-lg font-bold text-blue-600 break-all">{item.email}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'contact' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">📱 Contact</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {categoryButtons.contact.filter(c => c.phone).map((item, idx) => (
-                    <a key={idx} href={`tel:${item.phone}`} className="block bg-gray-100 rounded-xl p-4 hover:bg-green-100 transition">
-                      <p className="text-lg font-bold text-green-600 break-all">{item.phone}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'website' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">🌍 Website</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {categoryButtons.website.filter(w => w.url).map((item, idx) => (
-                    <a key={idx} href={formatUrl(item.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-purple-100 transition cursor-pointer">
-                      <p className="text-lg font-bold text-purple-600 break-all hover:underline">{item.url}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'portfolio' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">🎨 Portfolio</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  <a
-                    href={formatUrl(portfolio.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block bg-gray-100 rounded-xl p-4 hover:bg-cyan-100 transition cursor-pointer text-lg font-bold text-cyan-600 break-all hover:underline"
-                  >
-                    {portfolio.url}
-                  </a>
-                  <p className="text-sm text-gray-600">Click to open in new tab</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'projects' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">📁 Projects</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {projects.list.filter(p => p.url).map((proj, idx) => (
-                    <a key={idx} href={formatUrl(proj.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-orange-100 transition cursor-pointer">
-                      <p className="text-sm text-gray-600 font-bold">Project</p>
-                      <p className="text-lg font-bold text-orange-600 break-all hover:underline">{proj.title}</p>
-                      <p className="text-xs text-gray-500 break-all">{proj.url}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showModal === 'charities' && (
-            <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-              <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-bold">❤️ Support a Cause</h3>
-                  <button onClick={() => setShowModal(null)} className="text-4xl font-black">×</button>
-                </div>
-                <div className="space-y-3">
-                  {charityLinks.filter(c => c.url).map((charity, idx) => (
-                    <a key={idx} href={formatUrl(charity.url)} target="_blank" rel="noopener noreferrer" className="block bg-gray-100 rounded-xl p-4 hover:bg-pink-100 transition cursor-pointer">
-                      <p className="text-sm text-gray-600 font-bold">{charity.name || 'Charity'}</p>
-                      <p className="text-lg font-bold text-pink-600 break-all hover:underline">{charity.url}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // INBOX PAGE
-  if (currentView === 'inbox') {
-    if (!user) {
-      setShowAuth(true);
-      return null;
-    }
-
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8">
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; }`}</style>
-        <div className="max-w-2xl mx-auto">
-          <div className="flex items-center gap-3 mb-8">
-            <button
-              onClick={() => setCurrentView('editor')}
-              className="bg-white text-purple-600 px-6 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-purple-200"
-            >
-              ← Back
-            </button>
-            <h1 className="text-4xl text-white drop-shadow-lg font-bold">📬 Messages</h1>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 mb-6 shadow-xl">
-            <div className="flex flex-wrap gap-2">
-              {[{ key: 'all', label: 'All', emoji: '' },
-                { key: 'priority', label: 'Priority', emoji: '⭐' },
-                { key: 'collab', label: 'Collab', emoji: '🤝' },
-                { key: 'meeting', label: 'Meeting', emoji: '📅' },
-                { key: 'connect', label: 'Connect', emoji: '💬' },
-                { key: 'fans', label: 'Fans', emoji: '🌸' }
-              ].map(filter => (
-                <button
-                  key={filter.key}
-                  onClick={() => setInboxFilter(filter.key)}
-                  className={`px-4 py-2 rounded-xl font-bold text-sm transition transform hover:scale-105 ${
-                    inboxFilter === filter.key ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                >
-                  {filter.emoji} {filter.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {loadingMessages ? (
-              <div className="bg-white rounded-3xl p-10 text-center"><p className="text-2xl font-bold text-gray-600">Loading messages...</p></div>
-            ) : sortedMessages.length === 0 ? (
-              <div className="bg-white rounded-3xl p-10 text-center">
-                <p className="text-4xl mb-3">📭</p>
-                <p className="text-2xl font-bold text-gray-600">No messages yet</p>
-                <p className="text-sm text-gray-500 mt-2">Messages will appear here when shared!</p>
-              </div>
-            ) : (
-              sortedMessages.map((msg, idx) => (
-                <div key={msg.id || idx} className="bg-white rounded-2xl p-4 shadow-lg border-4 border-purple-200 hover:shadow-xl transition">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-lg text-gray-800">{msg.name}</span>
-                        <span className="text-2xl">{msg.messageType}</span>
-                        {msg.starred && <span className="text-2xl">⭐</span>}
-                        <span className="text-xl">{msg.senderTag}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">{msg.contact}</p>
-                    </div>
-                    <button onClick={() => toggleStar(idx)} className="text-2xl hover:scale-125 transition ml-2">
-                      {msg.starred ? '⭐' : '☆'}
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-2">{msg.message}</p>
-                  <p className="text-xs text-gray-400">{new Date(msg.timestamp).toLocaleString()}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
     );
   }
