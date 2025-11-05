@@ -7,7 +7,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyAAFqbEIL3TOAcFmsxoqltJfrtfE2sOXVs",
   authDomain: "links-dm-pro.firebaseapp.com",
   projectId: "links-dm-pro",
-  storageBucket: "links-dm-pro.firebasestorage.app",
+  storageBucket: "links-dm-pro.appspot.com",
   messagingSenderId: "965082307073",
   appId: "1:965082307073:web:78ea49e4c5888852307e00",
 };
