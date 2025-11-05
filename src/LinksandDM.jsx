@@ -1,26 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from './firebase';
 import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  updateDoc,
-  doc,
-  getDoc,
-  setDoc,
-  where,
+  collection, addDoc, getDocs, query, orderBy, updateDoc, doc, getDoc, setDoc, where
 } from 'firebase/firestore';
 import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged
 } from 'firebase/auth';
 
 const LinksAndDM = () => {
-  // ===== CORE STATE =====
   const [currentView, setCurrentView] = useState('landing');
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -37,7 +24,7 @@ const LinksAndDM = () => {
   const [showColorSettings, setShowColorSettings] = useState(false);
   const [showCustomTheme, setShowCustomTheme] = useState(false);
 
-  // ===== AUTH STATE =====
+  // Auth states
   const [user, setUser] = useState(null);
   const [showAuth, setShowAuth] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
@@ -45,7 +32,6 @@ const LinksAndDM = () => {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // ===== PROFILE DATA =====
   const [profile, setProfile] = useState({
     name: 'Your Name Here',
     businessProfession: 'Your Profession',
@@ -90,7 +76,6 @@ const LinksAndDM = () => {
   const [messages, setMessages] = useState([]);
   const [formData, setFormData] = useState({ name: '', contactInfo: '', message: '' });
 
-  // ===== THEMES =====
   const themes = [
     { name: 'Turquoise Dream', gradient: 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)' },
     { name: 'Ice Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #87CEEB 100%)' },
@@ -107,7 +92,7 @@ const LinksAndDM = () => {
     { name: 'Custom', gradient: `linear-gradient(135deg, ${profile.customTheme.start} 0%, ${profile.customTheme.end} 100%)` },
   ];
 
-  // ===== UTILITIES =====
+  // Utils
   const formatUrl = (url) => {
     if (!url) return '#';
     return url.startsWith('http') ? url : `https://${url}`;
@@ -145,7 +130,7 @@ const LinksAndDM = () => {
 
   const getSenderTag = (contactInfo) => isPriority(contactInfo) ? '⭐' : '🌸';
 
-  // ===== AUTH LISTENER =====
+  // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -158,7 +143,7 @@ const LinksAndDM = () => {
     return () => unsubscribe();
   }, []);
 
-  // ===== PUBLIC PREVIEW FROM URL =====
+  // Load profile from URL for public preview
   useEffect(() => {
     const path = window.location.pathname;
     if (path.startsWith('/user/')) {
@@ -169,7 +154,7 @@ const LinksAndDM = () => {
     }
   }, []);
 
-  // ===== AUTH HANDLERS =====
+  // Handle authentication
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -194,7 +179,7 @@ const LinksAndDM = () => {
     setCurrentView('landing');
   };
 
-  // ===== PROFILE LOADING =====
+  // Load profile by username (public)
   const loadProfileByUsername = async (username) => {
     try {
       setLoadingProfile(true);
@@ -212,6 +197,7 @@ const LinksAndDM = () => {
     }
   };
 
+  // Load profile from Firestore (private)
   const loadProfileFromFirebase = async (id) => {
     try {
       setLoadingProfile(true);
@@ -248,7 +234,7 @@ const LinksAndDM = () => {
     setButtonColors(data.buttonColors || buttonColors);
   };
 
-  // ===== PROFILE SAVING =====
+  // Save profile to Firestore
   const saveProfileToFirebase = async () => {
     if (!profileId) return;
     try {
@@ -275,6 +261,7 @@ const LinksAndDM = () => {
     }
   };
 
+  // Generate share link
   const generateShareLink = async () => {
     if (!profile.username.trim()) {
       alert('Please set a username first');
@@ -292,9 +279,9 @@ const LinksAndDM = () => {
     setTimeout(() => setCopySuccess(false), 2000);
   };
 
-  // ===== MESSAGE HANDLING =====
+  // Load messages
   useEffect(() => {
-    if (!profileId || isPublicPreview) return;
+    if (!profileId) return;
     const loadMessagesFromFirestore = async () => {
       try {
         setLoadingMessages(true);
@@ -313,8 +300,9 @@ const LinksAndDM = () => {
       }
     };
     loadMessagesFromFirestore();
-  }, [profileId, isPublicPreview]);
+  }, [profileId]);
 
+  // Save message
   const saveMessageToFirestore = async (newMessage) => {
     if (!profileId) return;
     try {
@@ -333,6 +321,7 @@ const LinksAndDM = () => {
     }
   };
 
+  // Handle message submit
   const handleMessageSubmit = (e) => {
     e.preventDefault();
     if (!formData.name || !formData.contactInfo || !formData.message) {
@@ -383,7 +372,7 @@ const LinksAndDM = () => {
     return new Date(b.timestamp) - new Date(a.timestamp);
   });
 
-  // ===== PROFILE EDIT UTILITIES =====
+  // Profile handlers
   const handleProfileChange = (field, value) =>
     setProfile(prev => ({ ...prev, [field]: value }));
 
@@ -410,7 +399,7 @@ const LinksAndDM = () => {
   const handleCategoryChange = (category, index, field, value) => {
     setCategory(prev => {
       const newList = [...prev[category]];
-      newList[index][field] = value;
+      newList[index] = { ...newList[index], [field]: value };
       return { ...prev, [category]: newList };
     });
   };
@@ -418,11 +407,11 @@ const LinksAndDM = () => {
   const handleCategoryRemove = (category, index) => {
     setCategory(prev => ({
       ...prev,
-      [category]: prev[category].filter((_, i) => i !== index),
+      [category]: prev[category].filter((_, i) => i !== index)
     }));
   };
 
-  // ===== MODALS =====
+  // MODALS
   const AuthModal = () => (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full">
@@ -577,7 +566,7 @@ const LinksAndDM = () => {
     </div>
   );
 
-  // ===== LANDING PAGE =====
+  // LANDING PAGE
   if (currentView === 'landing') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-pink-400 via-orange-300 to-green-400 p-8" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -643,7 +632,7 @@ const LinksAndDM = () => {
     );
   }
 
-  // ===== EDITOR PAGE =====
+  // EDITOR PAGE
   if (currentView === 'editor') {
     if (!user) {
       setShowAuth(true);
@@ -658,19 +647,13 @@ const LinksAndDM = () => {
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-2" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>One Link.</h1>
             <h1 className="heading-xl text-7xl text-white drop-shadow-2xl mb-8" style={{ textShadow: '3px 3px 0px rgba(0,0,0,0.3)' }}>Sorted DMs</h1>
             <div className="flex justify-center gap-4">
-              <button onClick={() => setCurrentView('preview')} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">
-                👁️ Preview
-              </button>
-              <button onClick={() => setCurrentView('inbox')} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">
-                📬 Inbox ({messages.length})
-              </button>
-              <button onClick={handleSignOut} className="bg-red-500 text-white px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg">
-                Logout
-              </button>
+              <button onClick={() => setCurrentView('preview')} className="bg-white text-green-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-green-200">👁️ Preview</button>
+              <button onClick={() => setCurrentView('inbox')} className="bg-white text-blue-600 px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg border-4 border-blue-200">📬 Inbox ({messages.length})</button>
+              <button onClick={handleSignOut} className="bg-red-500 text-white px-8 py-3 rounded-2xl font-bold text-lg hover:shadow-xl transition transform hover:scale-110 drop-shadow-lg">Logout</button>
             </div>
           </div>
 
-          {/* Profile Section (same as in your full spec) */}
+          {/* Profile Section */}
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 mb-6 max-w-2xl mx-auto shadow-xl">
             <h2 className="heading-md text-4xl mb-6 text-purple-600">👤 Profile</h2>
             <div className="flex justify-center mb-6">
@@ -830,8 +813,174 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Email, Contact, Website, Portfolio, Projects — all with add/remove */}
-          {/* Full section implementation as per your spec — omitted for brevity but included in final export */}
+          {/* Email */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📧 Email Addresses</h2>
+            <div className="space-y-2 mb-4">
+              {categoryButtons.email.map((e, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    type="email"
+                    value={e.email}
+                    onChange={(ev) => handleCategoryChange('email', idx, 'email', ev.target.value)}
+                    placeholder="your@email.com"
+                    className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
+                  />
+                  {categoryButtons.email.length > 1 && (
+                    <button
+                      onClick={() => handleCategoryRemove('email', idx)}
+                      className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {categoryButtons.email.length < 5 && (
+              <button
+                onClick={() => handleCategoryAdd('email')}
+                className="w-full bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
+              >
+                + Add Email
+              </button>
+            )}
+          </div>
+
+          {/* Contact */}
+          <div className="bg-gradient-to-br from-green-500 to-green-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📱 Contact Numbers</h2>
+            <div className="space-y-2 mb-4">
+              {categoryButtons.contact.map((c, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={c.phone}
+                    onChange={(e) => handleCategoryChange('contact', idx, 'phone', e.target.value)}
+                    placeholder="+1 (555) 123-4567"
+                    className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
+                  />
+                  {categoryButtons.contact.length > 1 && (
+                    <button
+                      onClick={() => handleCategoryRemove('contact', idx)}
+                      className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {categoryButtons.contact.length < 5 && (
+              <button
+                onClick={() => handleCategoryAdd('contact')}
+                className="w-full bg-white text-green-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
+              >
+                + Add Number
+              </button>
+            )}
+          </div>
+
+          {/* Website */}
+          <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🌍 Website / Store</h2>
+            <div className="space-y-2 mb-4">
+              {categoryButtons.website.map((w, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <input
+                    type="url"
+                    value={w.url}
+                    onChange={(e) => handleCategoryChange('website', idx, 'url', e.target.value)}
+                    placeholder="https://yourwebsite.com"
+                    className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
+                  />
+                  {categoryButtons.website.length > 1 && (
+                    <button
+                      onClick={() => handleCategoryRemove('website', idx)}
+                      className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {categoryButtons.website.length < 5 && (
+              <button
+                onClick={() => handleCategoryAdd('website')}
+                className="w-full bg-white text-blue-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
+              >
+                + Add Website
+              </button>
+            )}
+          </div>
+
+          {/* Portfolio */}
+          <div className="bg-gradient-to-br from-cyan-500 to-cyan-700 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>🎨 Portfolio</h2>
+            <div className="flex items-center gap-3 bg-white/95 rounded-xl px-4 py-3 mb-4">
+              <input type="checkbox" checked={portfolio.enabled} onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
+              <label className="font-bold text-lg flex-1">Enable Portfolio</label>
+            </div>
+            {portfolio.enabled && (
+              <input
+                type="url"
+                value={portfolio.url}
+                onChange={(e) => setPortfolio(prev => ({ ...prev, url: e.target.value }))}
+                placeholder="https://yourportfolio.com"
+                className="w-full bg-white/95 border-0 rounded-xl p-3 font-bold text-sm"
+              />
+            )}
+          </div>
+
+          {/* Projects */}
+          <div className="bg-gradient-to-br from-orange-500 to-yellow-600 rounded-3xl p-8 mb-6 max-w-2xl mx-auto shadow-xl border-4 border-white/20">
+            <h2 className="heading-md text-3xl text-white mb-6" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.2)' }}>📁 Latest Projects</h2>
+            <div className="flex items-center gap-3 bg-white/95 rounded-xl px-4 py-3 mb-4">
+              <input type="checkbox" checked={projects.enabled} onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))} className="w-7 h-7 cursor-pointer" />
+              <label className="font-bold text-lg flex-1">Enable Projects</label>
+            </div>
+            {projects.enabled && (
+              <>
+                <div className="space-y-2 mb-4">
+                  {projects.list.map((proj, idx) => (
+                    <div key={idx} className="flex gap-2 w-full">
+                      <input
+                        type="text"
+                        value={proj.title}
+                        onChange={(e) => { const newList = [...projects.list]; newList[idx].title = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }}
+                        placeholder="Title"
+                        className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
+                      />
+                      <input
+                        type="url"
+                        value={proj.url}
+                        onChange={(e) => { const newList = [...projects.list]; newList[idx].url = e.target.value; setProjects(prev => ({ ...prev, list: newList })); }}
+                        placeholder="https://..."
+                        className="flex-1 bg-white/95 border-0 rounded-lg p-2 font-bold text-xs min-w-0"
+                      />
+                      {projects.list.length > 1 && (
+                        <button
+                          onClick={() => { const newList = projects.list.filter((_, i) => i !== idx); setProjects(prev => ({ ...prev, list: newList })); }}
+                          className="bg-red-500 text-white px-3 py-2 rounded-lg font-bold text-sm flex-shrink-0 hover:bg-red-600"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {projects.list.length < 5 && (
+                  <button
+                    onClick={() => { setProjects(prev => ({ ...prev, list: [...prev.list, { title: '', url: '' }] })); }}
+                    className="w-full bg-white text-orange-600 px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg"
+                  >
+                    + Add Project
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
           {/* Themes */}
           <div className="bg-white rounded-3xl border-4 border-purple-500 p-8 mb-6 max-w-3xl mx-auto shadow-xl">
@@ -914,7 +1063,7 @@ const LinksAndDM = () => {
     );
   }
 
-  // ===== PREVIEW PAGE =====
+  // PREVIEW PAGE
   if (currentView === 'preview') {
     const selectedTheme = themes[profile.selectedTheme];
     const bgStyle = {
@@ -927,7 +1076,8 @@ const LinksAndDM = () => {
       <div className="min-h-screen p-8" style={bgStyle}>
         <style>{`@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Outfit:wght@600&display=swap'); .heading-xl { font-family: 'Poppins', sans-serif; font-weight: 800; } .text-lg { font-family: 'Outfit', sans-serif; font-weight: 600; }`}</style>
         <div className="max-w-md mx-auto">
-          {!isPublicPreview && user && (
+          {/* Owner-only navigation */}
+          {user && !isPublicPreview && (
             <div className="flex justify-center gap-3 mb-6">
               <button
                 onClick={() => setCurrentView('editor')}
@@ -1096,7 +1246,7 @@ const LinksAndDM = () => {
             </div>
           )}
 
-          {/* MODALS: handles, email, contact, website, portfolio, projects, charities */}
+          {/* MODALS */}
           {showModal === 'handles' && (
             <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
               <div className="bg-white rounded-3xl p-8 max-w-md w-full drop-shadow-2xl border-4 border-purple-300">
@@ -1235,7 +1385,7 @@ const LinksAndDM = () => {
     );
   }
 
-  // ===== INBOX PAGE =====
+  // INBOX PAGE
   if (currentView === 'inbox') {
     if (!user) {
       setShowAuth(true);
