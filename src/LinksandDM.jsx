@@ -103,6 +103,7 @@ const LinksAndDM = () => {
     username: '',
     profilePic: null,
     selectedTheme: 0,
+    customBgColor: null,
   });
 
   // Buttons & Links States
@@ -138,6 +139,7 @@ const LinksAndDM = () => {
   const [shareLink, setShareLink] = useState('');
   // Add loading state for save operations
   const [isSaving, setIsSaving] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   // UI States
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -391,23 +393,54 @@ const LinksAndDM = () => {
       return;
     }
     try {
-      const isPriority = priorityContacts.some(c => c.handle === messageForm.contact);
+      // If on public preview, find the recipient by username
+      let recipientId = user?.uid;
+      if (!recipientId && publicUsername) {
+        const q = query(
+          collection(db, 'users'),
+          where('profile.username', '==', publicUsername)
+        );
+        const querySnapshot = await getDocs(q);
+        if (querySnapshot.docs.length === 0) {
+          alert('Recipient not found');
+          return;
+        }
+        recipientId = querySnapshot.docs[0].id;
+      }
+
+      if (!recipientId) {
+        alert('Error: Recipient not found');
+        return;
+      }
+
+      // Check if sender is in priority contacts
+      const recipientData = (await getDoc(doc(db, 'users', recipientId))).data();
+      const isPriority = recipientData?.priorityContacts?.some(c => c === messageForm.contact) || false;
+
+      // Get message type label
+      let messageTypeLabel = currentMessageType?.label || currentMessageType || 'Message';
+      if (currentMessageType?.icon && currentMessageType?.label) {
+        messageTypeLabel = `${currentMessageType.icon} ${currentMessageType.label}`;
+      }
+
       await addDoc(collection(db, 'messages'), {
-        recipientId: user.uid,
+        recipientId,
         senderName: messageForm.name,
         senderContact: messageForm.contact,
         message: messageForm.message,
-        messageType: currentMessageType.icon,
+        messageType: messageTypeLabel,
         timestamp: new Date(),
         isPriority: isPriority,
       });
       setMessageForm({ name: '', contact: '', message: '' });
       setShowMessageForm(false);
-      alert('✅ Message sent!');
-      loadMessages(user.uid);
+      alert('✅ Message sent successfully!');
+      if (user) {
+        loadMessages(user.uid);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Error sending message');
+      alert('Error sending message: ' + error.message);
     }
   };
 
@@ -416,10 +449,10 @@ const LinksAndDM = () => {
     let filtered = messages;
     if (inboxFilter === 'all') return filtered;
     if (inboxFilter === 'priority') return filtered.filter(m => m.isPriority);
-    if (inboxFilter === 'meeting') return filtered.filter(m => m.messageType === '📅');
-    if (inboxFilter === 'connect') return filtered.filter(m => m.messageType === '💬');
-    if (inboxFilter === 'collab') return filtered.filter(m => m.messageType === '🤝');
-    if (inboxFilter === 'fans') return filtered.filter(m => !m.isPriority);
+    if (inboxFilter === 'meeting') return filtered.filter(m => m.messageType?.includes('📅') || m.messageType?.includes('Book a Meeting'));
+    if (inboxFilter === 'connect') return filtered.filter(m => m.messageType?.includes('💬') || m.messageType?.includes("Let's Connect"));
+    if (inboxFilter === 'collab') return filtered.filter(m => m.messageType?.includes('🤝') || m.messageType?.includes('Collab'));
+    if (inboxFilter === 'fans') return filtered.filter(m => m.messageType?.includes('❤️') || m.messageType?.includes('Support'));
     return filtered;
   };
 
@@ -427,6 +460,19 @@ const LinksAndDM = () => {
     if (!url) return '';
     if (url.startsWith('http')) return url;
     return `https://${url}`;
+  };
+
+  // Delete message
+  const deleteMessage = async (msgId) => {
+    try {
+      await deleteDoc(doc(db, 'messages', msgId));
+      if (user) {
+        loadMessages(user.uid);
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      alert('Error deleting message');
+    }
   };
 
   if (loading) {
@@ -450,11 +496,14 @@ const LinksAndDM = () => {
 
   // PUBLIC PROFILE PAGE (via /user/:username)
   if (currentView === 'public-preview' && publicProfile) {
-    const theme = themes[publicProfile.profile?.selectedTheme || 0];
+    const bgGradient = publicProfile.profile?.customBgColor 
+      ? publicProfile.profile.customBgColor
+      : themes[publicProfile.profile?.selectedTheme || 0]?.gradient || 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)';
+    
     return (
       <div style={{
         minHeight: '100vh',
-        background: theme?.gradient || 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)',
+        background: bgGradient,
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
@@ -591,7 +640,277 @@ const LinksAndDM = () => {
                 <span>{publicProfile.dmButtons.collabRequest.label}</span>
               </button>
             )}
+
+            {publicProfile.dmButtons?.supportCause?.enabled && (
+              <button
+                onClick={() => { setCurrentMessageType(publicProfile.dmButtons.supportCause); setShowMessageForm(true); }}
+                style={{
+                  width: '100%',
+                  borderRadius: '20px',
+                  padding: '16px 20px',
+                  fontWeight: '700',
+                  fontSize: '15px',
+                  border: '3px solid rgba(255,255,255,0.4)',
+                  background: publicProfile.buttonColors?.supportCause?.bg || '#FFB6D9',
+                  color: publicProfile.buttonColors?.supportCause?.text || '#C71585',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  transition: 'all 0.3s',
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>❤️</span>
+                <span>{publicProfile.dmButtons.supportCause.label}</span>
+              </button>
+            )}
           </div>
+
+          {/* Contact Cards Grid */}
+          {(publicProfile.socialHandles?.length > 0 || publicProfile.emails?.length > 0 || 
+            publicProfile.phones?.length > 0 || publicProfile.websites?.length > 0 ||
+            publicProfile.portfolio?.enabled || publicProfile.projects?.enabled) && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginBottom: '20px',
+            }}>
+              {publicProfile.socialHandles?.length > 0 && (
+                <button
+                  onClick={() => {
+                    const handle = publicProfile.socialHandles[0];
+                    window.open(`https://instagram.com/${handle}`, '_blank');
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>🌐</div>
+                  <div style={{ fontSize: '12px' }}>@ Socials</div>
+                </button>
+              )}
+
+              {publicProfile.emails?.length > 0 && (
+                <button
+                  onClick={() => window.location.href = `mailto:${publicProfile.emails[0]}`}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>📧</div>
+                  <div style={{ fontSize: '12px' }}>@ Email</div>
+                </button>
+              )}
+
+              {publicProfile.phones?.length > 0 && (
+                <button
+                  onClick={() => window.location.href = `tel:${publicProfile.phones[0]}`}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>📱</div>
+                  <div style={{ fontSize: '12px' }}>Call</div>
+                </button>
+              )}
+
+              {publicProfile.websites?.length > 0 && (
+                <button
+                  onClick={() => window.open(formatUrl(publicProfile.websites[0]), '_blank')}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>🌍</div>
+                  <div style={{ fontSize: '12px' }}>Website</div>
+                </button>
+              )}
+
+              {publicProfile.portfolio?.enabled && (
+                <button
+                  onClick={() => window.open(formatUrl(publicProfile.portfolio.url), '_blank')}
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>🎨</div>
+                  <div style={{ fontSize: '12px' }}>Portfolio</div>
+                </button>
+              )}
+
+              {publicProfile.projects?.enabled && (
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    textAlign: 'center',
+                    border: '3px solid rgba(255,255,255,0.4)',
+                    color: 'white',
+                    fontWeight: '900',
+                    fontSize: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ fontSize: '32px' }}>📁</div>
+                  <div style={{ fontSize: '12px' }}>Projects</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Charity Links */}
+          {publicProfile.charityLinks?.length > 0 && (
+            <div style={{
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '16px',
+              padding: '20px',
+              marginBottom: '24px',
+              border: '3px solid rgba(255,255,255,0.3)',
+            }}>
+              <div style={{ fontSize: '18px', fontWeight: '900', color: 'white', marginBottom: '12px' }}>
+                ❤️ Charity Links
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {publicProfile.charityLinks.map((link, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => window.open(formatUrl(link), '_blank')}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'rgba(255,255,255,0.3)',
+                      color: 'white',
+                      border: '2px solid white',
+                      borderRadius: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.5)';
+                      e.target.style.transform = 'scale(1.05)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.3)';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  >
+                    🔗 {link}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Message Form Modal */}
           {showMessageForm && currentMessageType && (
@@ -2024,7 +2343,61 @@ const LinksAndDM = () => {
             </div>
           </div>
 
-          {/* Priority Contacts */}
+          {/* Custom Background Color */}
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '30px',
+            marginBottom: '20px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+          }}>
+            <h2 style={{ fontSize: '20px', color: '#333', fontWeight: '900', margin: '0 0 20px 0' }}>🎯 Custom Background Color</h2>
+            <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px', fontWeight: '600' }}>Create your unique look with a custom background color</p>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <input
+                type="color"
+                value={profile.customBgColor || '#FFB347'}
+                onChange={(e) => setProfile(prev => ({ ...prev, customBgColor: e.target.value }))}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  border: '3px solid #ddd',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                }}
+              />
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: '#333' }}>Selected Color</p>
+                <div style={{
+                  background: profile.customBgColor || '#FFB347',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  textAlign: 'center',
+                  fontWeight: '700',
+                  color: 'white',
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
+                }}>
+                  {profile.customBgColor || '#FFB347'}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setProfile(prev => ({ ...prev, customBgColor: null }))}
+              style={{
+                marginTop: '12px',
+                background: '#f0f0f0',
+                color: '#333',
+                border: '2px solid #ddd',
+                borderRadius: '12px',
+                padding: '10px 16px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              Reset to Theme Colors
+            </button>
+          </div>
           <div style={{
             background: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
             borderRadius: '20px',
@@ -2039,13 +2412,13 @@ const LinksAndDM = () => {
                 <div key={idx} style={{ display: 'flex', gap: '8px' }}>
                   <input
                     type="text"
-                    value={contact.handle}
+                    value={contact}
                     onChange={(e) => {
                       const newContacts = [...priorityContacts];
-                      newContacts[idx].handle = e.target.value;
+                      newContacts[idx] = e.target.value;
                       setPriorityContacts(newContacts);
                     }}
-                    placeholder="@friendshandle"
+                    placeholder="email or phone"
                     style={{
                       flex: 1,
                       border: '1px solid #fff',
@@ -3097,29 +3470,51 @@ const LinksAndDM = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {getFilteredMessages().map((msg, idx) => (
+              {getFilteredMessages().map((msg) => (
                 <div
-                  key={idx}
+                  key={msg.id}
                   style={{
                     background: 'rgba(255,255,255,0.95)',
                     borderRadius: '16px',
                     padding: '16px',
                     borderLeft: `5px solid ${msg.isPriority ? '#FBBF24' : '#9CA3AF'}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                    <div>
-                      <div style={{ fontWeight: '900', color: '#333', fontSize: '14px', marginBottom: '4px' }}>
-                        {msg.isPriority ? '⭐' : '🌸'} {msg.senderName}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                      <div>
+                        <div style={{ fontWeight: '900', color: '#333', fontSize: '14px', marginBottom: '4px' }}>
+                          {msg.isPriority ? '⭐' : '🌸'} {msg.senderName}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#999', fontWeight: '600' }}>{msg.senderContact}</div>
                       </div>
-                      <div style={{ fontSize: '12px', color: '#999', fontWeight: '600' }}>{msg.senderContact}</div>
+                      <div style={{ fontSize: '18px', fontWeight: '700' }}>{msg.messageType}</div>
                     </div>
-                    <div style={{ fontSize: '20px', fontWeight: '700' }}>{msg.messageType}</div>
+                    <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.5', marginBottom: '10px' }}>{msg.message}</div>
+                    <div style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>
+                      {msg.timestamp?.toDate?.()?.toLocaleString?.() || 'Just now'}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.5', marginBottom: '10px' }}>{msg.message}</div>
-                  <div style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>
-                    {msg.timestamp?.toDate?.()?.toLocaleString?.() || 'Just now'}
-                  </div>
+                  <button
+                    onClick={() => deleteMessage(msg.id)}
+                    style={{
+                      background: '#ff4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      cursor: 'pointer',
+                      fontWeight: '700',
+                      fontSize: '12px',
+                      marginLeft: '12px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Delete
+                  </button>
                 </div>
               ))}
             </div>
