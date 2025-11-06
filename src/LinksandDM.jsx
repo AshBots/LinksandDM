@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -349,7 +349,7 @@ const LinksAndDM = () => {
     }
     try {
       if (typeof window !== 'undefined' && window.location) {
-        const link = `${window.location.origin}/user/${profile.username}`;
+        const link = typeof window !== 'undefined' && window.location ? `${window.location.origin}/user/${profile.username}` : `https://linksanddms.netlify.app/user/${profile.username}`;
         setShareLink(link);
       } else {
         // Fallback for SSR or special environments
@@ -558,7 +558,7 @@ const LinksAndDM = () => {
             </p>
             <p style={{
               color: 'rgba(255,255,255,0.95)',
-              fontSize: '13px',
+              fontSize: '16px',
               textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
               fontWeight: '600',
               margin: 0,
@@ -708,7 +708,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>🌐</div>
-                  <div style={{ fontSize: '12px' }}>@ Socials</div>
+                  <div style={{ fontSize: '15px' }}>@ Socials</div>
                 </button>
               )}
 
@@ -741,7 +741,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>📧</div>
-                  <div style={{ fontSize: '12px' }}>@ Email</div>
+                  <div style={{ fontSize: '15px' }}>@ Email</div>
                 </button>
               )}
 
@@ -774,7 +774,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>📱</div>
-                  <div style={{ fontSize: '12px' }}>Call</div>
+                  <div style={{ fontSize: '15px' }}>Call</div>
                 </button>
               )}
 
@@ -807,7 +807,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>🌍</div>
-                  <div style={{ fontSize: '12px' }}>Website</div>
+                  <div style={{ fontSize: '15px' }}>Website</div>
                 </button>
               )}
 
@@ -840,7 +840,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>🎨</div>
-                  <div style={{ fontSize: '12px' }}>Portfolio</div>
+                  <div style={{ fontSize: '15px' }}>Portfolio</div>
                 </button>
               )}
 
@@ -862,7 +862,7 @@ const LinksAndDM = () => {
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>📁</div>
-                  <div style={{ fontSize: '12px' }}>Projects</div>
+                  <div style={{ fontSize: '15px' }}>Projects</div>
                 </div>
               )}
             </div>
@@ -893,7 +893,7 @@ const LinksAndDM = () => {
                       borderRadius: '12px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       transition: 'all 0.2s',
                     }}
                     onMouseEnter={(e) => {
@@ -955,7 +955,7 @@ const LinksAndDM = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Name</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Name</label>
                     <input
                       type="text"
                       value={messageForm.name}
@@ -974,7 +974,7 @@ const LinksAndDM = () => {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Email or Contact</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Email or Contact</label>
                     <input
                       type="text"
                       value={messageForm.contact}
@@ -993,7 +993,7 @@ const LinksAndDM = () => {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Message</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Message</label>
                     <textarea
                       value={messageForm.message}
                       onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
@@ -1317,7 +1317,7 @@ const LinksAndDM = () => {
               />
             </div>
 
-            {authError && <p style={{ color: '#dc2626', fontSize: '13px', margin: 0, fontWeight: '600' }}>❌ {authError}</p>}
+            {authError && <p style={{ color: '#dc2626', fontSize: '16px', margin: 0, fontWeight: '600' }}>❌ {authError}</p>}
 
             <button
               type="submit"
@@ -1612,7 +1612,7 @@ const LinksAndDM = () => {
                         borderRadius: '12px',
                         marginBottom: '10px',
                       }}>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>📱 Your Shareable Link:</p>
+                        <p style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#666', fontWeight: '700' }}>📱 Your Shareable Link:</p>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <input
                             type="text"
@@ -1623,7 +1623,7 @@ const LinksAndDM = () => {
                               border: '1px solid #ddd',
                               borderRadius: '8px',
                               padding: '8px',
-                              fontSize: '12px',
+                              fontSize: '15px',
                               fontWeight: '600',
                               boxSizing: 'border-box',
                             }}
@@ -1638,7 +1638,7 @@ const LinksAndDM = () => {
                               border: 'none',
                               fontWeight: '700',
                               cursor: 'pointer',
-                              fontSize: '12px',
+                              fontSize: '15px',
                               whiteSpace: 'nowrap',
                             }}
                           >
@@ -1714,7 +1714,7 @@ const LinksAndDM = () => {
                       {btn.icon}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#333' }}>{btn.label}</p>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#333' }}>{btn.label}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <input
@@ -1783,7 +1783,7 @@ const LinksAndDM = () => {
                     padding: '6px 12px',
                     borderRadius: '8px',
                     fontWeight: '700',
-                    fontSize: '12px',
+                    fontSize: '15px',
                   }}>
                     Preview
                   </div>
@@ -1819,7 +1819,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1838,7 +1838,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1852,7 +1852,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -1905,7 +1905,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1924,7 +1924,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1938,7 +1938,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -1991,7 +1991,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -2005,7 +2005,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -2058,7 +2058,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -2072,7 +2072,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -2125,7 +2125,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -2139,7 +2139,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -2240,7 +2240,7 @@ const LinksAndDM = () => {
                           borderRadius: '8px',
                           padding: '8px',
                           fontWeight: '600',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           boxSizing: 'border-box',
                         }}
                       />
@@ -2259,7 +2259,7 @@ const LinksAndDM = () => {
                           borderRadius: '8px',
                           padding: '8px',
                           fontWeight: '600',
-                          fontSize: '12px',
+                          fontSize: '15px',
                           boxSizing: 'border-box',
                         }}
                       />
@@ -2276,7 +2276,7 @@ const LinksAndDM = () => {
                           borderRadius: '8px',
                           fontWeight: '700',
                           cursor: 'pointer',
-                          fontSize: '12px',
+                          fontSize: '15px',
                         }}
                       >
                         ✕
@@ -2425,7 +2425,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -2439,7 +2439,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '15px',
                     }}
                   >
                     ✕
@@ -2572,7 +2572,7 @@ const LinksAndDM = () => {
             </p>
             <p style={{
               color: 'rgba(255,255,255,0.95)',
-              fontSize: '13px',
+              fontSize: '16px',
               textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
               fontWeight: '600',
               margin: 0,
@@ -2702,7 +2702,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#FFB6C1',
                   color: '#C71585',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2728,7 +2728,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#B0E0E6',
                   color: '#1E90FF',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2754,7 +2754,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#B4F8C8',
                   color: '#228B22',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2780,7 +2780,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#DDA0DD',
                   color: '#663399',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2806,7 +2806,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#B0E0E6',
                   color: '#1E90FF',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2832,7 +2832,7 @@ const LinksAndDM = () => {
                   borderRadius: '16px',
                   padding: '16px',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   background: '#FFDAB9',
                   color: '#FF8C00',
                   border: '3px solid rgba(255,255,255,0.4)',
@@ -2967,7 +2967,7 @@ const LinksAndDM = () => {
                       onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
                     >
-                      <p style={{ fontSize: '12px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{handle.platform}</p>
+                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{handle.platform}</p>
                       <p style={{ fontSize: '14px', fontWeight: '700', color: '#0066cc', margin: 0 }}>{handle.handle}</p>
                     </a>
                   ))}
@@ -3200,7 +3200,7 @@ const LinksAndDM = () => {
                       onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
                     >
-                      <p style={{ fontSize: '12px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
+                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
                       <p style={{ fontSize: '14px', fontWeight: '700', color: '#FF8C00', margin: 0 }}>{project.title}</p>
                     </a>
                   ))}
@@ -3260,7 +3260,7 @@ const LinksAndDM = () => {
                       onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
                     >
-                      <p style={{ fontSize: '12px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{charity.name || 'Charity'}</p>
+                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{charity.name || 'Charity'}</p>
                       <p style={{ fontSize: '14px', fontWeight: '700', color: '#EC4899', margin: 0 }}>{charity.url}</p>
                     </a>
                   ))}
@@ -3305,7 +3305,7 @@ const LinksAndDM = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Name</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Name</label>
                     <input
                       type="text"
                       value={messageForm.name}
@@ -3324,7 +3324,7 @@ const LinksAndDM = () => {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Email or Contact</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Email or Contact</label>
                     <input
                       type="text"
                       value={messageForm.contact}
@@ -3343,7 +3343,7 @@ const LinksAndDM = () => {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '12px', color: '#333' }}>Message</label>
+                    <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Message</label>
                     <textarea
                       value={messageForm.message}
                       onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
@@ -3446,7 +3446,7 @@ const LinksAndDM = () => {
                   borderRadius: '20px',
                   cursor: 'pointer',
                   fontWeight: '700',
-                  fontSize: '12px',
+                  fontSize: '15px',
                   transition: 'all 0.2s',
                 }}
               >
@@ -3466,7 +3466,7 @@ const LinksAndDM = () => {
             }}>
               <div style={{ fontSize: '56px', marginBottom: '15px' }}>📬</div>
               <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', color: '#333' }}>No messages yet</div>
-              <div style={{ fontSize: '13px' }}>Messages will appear here when you share your profile!</div>
+              <div style={{ fontSize: '16px' }}>Messages will appear here when you share your profile!</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -3489,11 +3489,11 @@ const LinksAndDM = () => {
                         <div style={{ fontWeight: '900', color: '#333', fontSize: '14px', marginBottom: '4px' }}>
                           {msg.isPriority ? '⭐' : '🌸'} {msg.senderName}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#999', fontWeight: '600' }}>{msg.senderContact}</div>
+                        <div style={{ fontSize: '15px', color: '#999', fontWeight: '600' }}>{msg.senderContact}</div>
                       </div>
                       <div style={{ fontSize: '18px', fontWeight: '700' }}>{msg.messageType}</div>
                     </div>
-                    <div style={{ fontSize: '13px', color: '#666', lineHeight: '1.5', marginBottom: '10px' }}>{msg.message}</div>
+                    <div style={{ fontSize: '16px', color: '#666', lineHeight: '1.5', marginBottom: '10px' }}>{msg.message}</div>
                     <div style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>
                       {msg.timestamp?.toDate?.()?.toLocaleString?.() || 'Just now'}
                     </div>
@@ -3508,7 +3508,7 @@ const LinksAndDM = () => {
                       padding: '8px 12px',
                       cursor: 'pointer',
                       fontWeight: '700',
-                      fontSize: '12px',
+                      fontSize: '15px',
                       marginLeft: '12px',
                       whiteSpace: 'nowrap',
                     }}
