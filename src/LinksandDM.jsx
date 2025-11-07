@@ -267,7 +267,7 @@ const LinksAndDM = () => {
   };
 
   // Save profile to Firebase
-  const saveProfile = async () => {
+  const saveProfile = async (silent = false) => {
     if (!user || !profile.username.trim()) {
       alert('⚠️ Please enter a username');
       return;
@@ -290,7 +290,9 @@ const LinksAndDM = () => {
         email: user.email,
         lastUpdated: new Date(),
       });
-      alert('✅ Profile saved successfully!');
+      if (!silent) {
+        alert('✅ Profile saved successfully!');
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('❌ Error saving profile: ' + error.message);
@@ -368,6 +370,7 @@ const LinksAndDM = () => {
         websites,
         portfolio,
         projects,
+        socialHandles,
         priorityContacts,
         userId: user.uid,
         email: user.email,
@@ -440,9 +443,12 @@ const LinksAndDM = () => {
         return;
       }
 
-      // Check if sender is in priority contacts
+      // Check if sender is in priority contacts (phone or handle)
       const recipientData = (await getDoc(doc(db, 'users', recipientId))).data();
-      const isPriority = recipientData?.priorityContacts?.some(c => c === messageForm.contact) || false;
+      const isPriority = recipientData?.priorityContacts?.some(c => 
+        (typeof c === 'string' ? c === messageForm.contact : 
+         c.phone === messageForm.contact || c.handle === messageForm.contact)
+      ) || false;
 
       // Get message type label
       let messageTypeLabel = currentMessageType?.label || currentMessageType || 'Message';
@@ -804,7 +810,7 @@ const LinksAndDM = () => {
 
               {publicProfile.websites?.length > 0 && (
                 <button
-                  onClick={() => window.open(formatUrl(publicProfile.websites[0]), '_blank')}
+                  onClick={() => setShowWebsiteModal(true)}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -837,7 +843,7 @@ const LinksAndDM = () => {
 
               {publicProfile.portfolio?.enabled && (
                 <button
-                  onClick={() => window.open(formatUrl(publicProfile.portfolio.url), '_blank')}
+                  onClick={() => setShowPortfolioModal(true)}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -869,7 +875,8 @@ const LinksAndDM = () => {
               )}
 
               {publicProfile.projects?.enabled && (
-                <div
+                <button
+                  onClick={() => setShowProjectsModal(true)}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -883,11 +890,21 @@ const LinksAndDM = () => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     gap: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                    e.currentTarget.style.transform = 'scale(1)';
                   }}
                 >
                   <div style={{ fontSize: '32px' }}>📁</div>
                   <div style={{ fontSize: '12px' }}>Projects</div>
-                </div>
+                </button>
               )}
             </div>
           )}
@@ -1314,14 +1331,14 @@ const LinksAndDM = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f591ba 0%, #f2bc7c 50%, #7fda7f 100%)',
+        background: 'linear-gradient(135deg, #FF69B4 0%, #FFB84D 20%, #FFDA03 40%, #5FFF8C 60%, #00FF88 80%, #00E676 100%)',
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '60px', marginTop: '20px' }}>
             <h1 style={{
-              fontSize: '36px',
+              fontSize: '48px',
               fontWeight: '900',
               color: 'white',
               textShadow: '3px 3px 0px rgba(0,0,0,0.2)',
@@ -1330,19 +1347,19 @@ const LinksAndDM = () => {
             <button
               onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
               style={{
-                background: 'linear-gradient(135deg, #A855F7 0%, #8B5CF6 100%)',
+                background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)',
                 color: 'white',
-                padding: '18px 48px',
+                padding: '20px 50px',
                 borderRadius: '50px',
                 border: 'none',
                 fontWeight: '900',
-                fontSize: '22px',
+                fontSize: '24px',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
-                boxShadow: '0 10px 40px rgba(168, 85, 247, 0.4)',
+                boxShadow: '0 10px 40px rgba(99, 102, 241, 0.4)',
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.08)'; e.target.style.boxShadow = '0 15px 50px rgba(168, 85, 247, 0.6)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 40px rgba(168, 85, 247, 0.4)'; }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.08)'; e.target.style.boxShadow = '0 15px 50px rgba(99, 102, 241, 0.6)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 40px rgba(99, 102, 241, 0.4)'; }}
             >
               Let's Do It!
             </button>
@@ -1350,7 +1367,7 @@ const LinksAndDM = () => {
 
           <div style={{ textAlign: 'center', marginBottom: '80px' }}>
             <h2 style={{
-              fontSize: '72px',
+              fontSize: '92px',
               fontWeight: '900',
               color: 'white',
               textShadow: '4px 4px 0px rgba(0,0,0,0.3)',
@@ -1407,46 +1424,46 @@ const LinksAndDM = () => {
             ))}
           </div>
 
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center' }}>
             <button
               onClick={() => setCurrentView('auth')}
               style={{
                 background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
                 color: 'white',
-                padding: '18px 48px',
+                padding: '20px 60px',
                 borderRadius: '50px',
                 border: '3px solid white',
                 fontWeight: '900',
-                fontSize: '18px',
+                fontSize: '24px',
                 cursor: 'pointer',
-                marginRight: '16px',
-                marginBottom: '12px',
                 transition: 'all 0.3s',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                minWidth: '300px',
               }}
               onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; }}
               onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
             >
-              Get Started Now 🚀
+              Let's Get Organized 🎉
             </button>
             <button
               onClick={() => setCurrentView('demo-preview')}
               style={{
                 background: 'white',
                 color: '#A855F7',
-                padding: '14px 32px',
+                padding: '20px 60px',
                 borderRadius: '50px',
                 border: '3px solid white',
                 fontWeight: '900',
-                fontSize: '18px',
+                fontSize: '24px',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                minWidth: '300px',
               }}
               onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; }}
               onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
             >
-              See Demo ✨
+              See Demo Preview ✨
             </button>
           </div>
 
@@ -1600,12 +1617,12 @@ const LinksAndDM = () => {
           <div style={{
             background: 'rgba(255,255,255,0.15)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '30px',
             backdropFilter: 'blur(10px)',
             borderLeft: '5px solid rgba(168, 85, 247, 0.8)',
           }}>
-            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '800', margin: '0 0 16px 0' }}>Profile Settings</h1>
+            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '800', margin: '0 0 16px 0' }}>Build Your Digital Presence</h1>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setCurrentView('preview')}
@@ -1664,142 +1681,7 @@ const LinksAndDM = () => {
             </div>
           </div>
 
-          {/* Save & Generate Link Buttons */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', flexDirection: 'column' }}>
-            <button
-              onClick={saveProfile}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                color: 'white',
-                padding: '16px',
-                borderRadius: '12px',
-                border: 'none',
-                fontWeight: '900',
-                cursor: 'pointer',
-                fontSize: '16px',
-                transition: 'all 0.3s',
-                boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
-              }}
-              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.4)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)'; }}
-              disabled={isSaving}
-            >
-              {isSaving ? '⏳ Saving...' : '⬇️ Save All Changes'}
-            </button>
-            <button
-              onClick={async () => {
-                await saveProfile();
-                generateShareLink();
-              }}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                color: 'white',
-                padding: '16px',
-                borderRadius: '12px',
-                border: 'none',
-                fontWeight: '900',
-                cursor: 'pointer',
-                fontSize: '16px',
-                transition: 'all 0.3s',
-                boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)',
-              }}
-              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 32px rgba(59, 130, 246, 0.4)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.3)'; }}
-            >
-              🔗 Generate Shareable Link
-            </button>
-            {shareLink && (
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '2px solid #3B82F6',
-                borderRadius: '12px',
-                padding: '12px',
-                textAlign: 'center',
-              }}>
-                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>✅ Link Generated!</p>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    value={shareLink}
-                    readOnly
-                    style={{
-                      flex: 1,
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    style={{
-                      background: copySuccess ? '#10B981' : '#3B82F6',
-                      color: 'white',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {copySuccess ? '✅ Copied!' : '📋 Copy'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
-                }}
-              >
-                👁️ Preview
-              </button>
-              <button
-                onClick={() => setCurrentView('inbox')}
-                style={{
-                  background: '#8B5CF6',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
-                📬 Inbox ({messages.length})
-              </button>
-              <button
-                onClick={handleLogout}
-                style={{
-                  background: '#dc2626',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
-                🚪 Logout
-              </button>
-            </div>
-          </div>
-
-          {/* Profile Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: '#333', marginBottom: '20px', fontWeight: '900', margin: 0, marginBottom: '20px' }}>👤 Profile</h2>
 
             {/* Profile Picture */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -1922,68 +1804,14 @@ const LinksAndDM = () => {
                   }}
                 />
                 {profile.username && (
-                  <>
-                    <button
-                      onClick={generateShareLink}
-                      style={{
-                        width: '100%',
-                        background: '#3B82F6',
-                        color: 'white',
-                        padding: '10px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        fontWeight: '700',
-                        cursor: 'pointer',
-                        marginBottom: '10px',
-                        fontSize: '14px',
-                      }}
-                    >
-                      🔗 Generate Share Link
-                    </button>
-                    {shareLink && (
-                      <div style={{
-                        background: '#F3F4F6',
-                        padding: '12px',
-                        borderRadius: '12px',
-                        marginBottom: '10px',
-                      }}>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>📱 Your Shareable Link:</p>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <input
-                            type="text"
-                            value={shareLink}
-                            readOnly
-                            style={{
-                              flex: 1,
-                              border: '1px solid #ddd',
-                              borderRadius: '8px',
-                              padding: '8px',
-                              fontSize: '12px',
-                              fontWeight: '600',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                          <button
-                            onClick={copyToClipboard}
-                            style={{
-                              background: copySuccess ? '#10B981' : '#3B82F6',
-                              color: 'white',
-                              padding: '8px 12px',
-                              borderRadius: '8px',
-                              border: 'none',
-                              fontWeight: '700',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {copySuccess ? '✅ Copied!' : '📋 Copy'}
-                          </button>
-                        </div>
-                        <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#999' }}>Paste in Instagram/TikTok bio to share your profile!</p>
-                      </div>
-                    )}
-                  </>
+                  <div style={{
+                    background: '#F3F4F6',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    marginBottom: '10px',
+                  }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>Note: Generate link at bottom</p>
+                  </div>
                 )}
               </div>
             </div>
@@ -2129,7 +1957,7 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #EC4899 0%, #F87171 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
@@ -2216,7 +2044,7 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
@@ -2303,7 +2131,7 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
@@ -2371,7 +2199,7 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
@@ -2439,7 +2267,7 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
@@ -2739,27 +2567,54 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '18px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
             overflow: 'hidden',
           }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 12px 0' }}>⭐ Friends & Family (Priority)</h2>
-            <p style={{ color: 'white', fontWeight: '600', marginBottom: '16px', fontSize: '13px' }}>Add @handles of friends/family. Messages from them appear with ⭐ in inbox</p>
+            <p style={{ color: 'white', fontWeight: '600', marginBottom: '16px', fontSize: '13px' }}>Add phone number + handle. Messages from these contacts show ⭐</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {priorityContacts.map((contact, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="tel"
+                    value={typeof contact === 'string' ? '' : (contact.phone || '')}
+                    onChange={(e) => {
+                      const newContacts = [...priorityContacts];
+                      if (typeof newContacts[idx] === 'string') {
+                        newContacts[idx] = { phone: e.target.value, handle: '' };
+                      } else {
+                        newContacts[idx].phone = e.target.value;
+                      }
+                      setPriorityContacts(newContacts);
+                    }}
+                    placeholder="+1234567890"
+                    style={{
+                      flex: 0.4,
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontWeight: '600',
+                      fontSize: '13px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                   <input
                     type="text"
                     value={typeof contact === 'string' ? contact : (contact.handle || '')}
                     onChange={(e) => {
                       const newContacts = [...priorityContacts];
-                      newContacts[idx] = e.target.value;
+                      if (typeof newContacts[idx] === 'string') {
+                        newContacts[idx] = { phone: '', handle: e.target.value };
+                      } else {
+                        newContacts[idx].handle = e.target.value;
+                      }
                       setPriorityContacts(newContacts);
                     }}
-                    placeholder="@instagram_handle"
+                    placeholder="@handle"
                     style={{
-                      flex: 1,
+                      flex: 0.6,
                       border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
@@ -2787,7 +2642,7 @@ const LinksAndDM = () => {
               ))}
             </div>
             <button
-              onClick={() => setPriorityContacts([...priorityContacts, ''])}
+              onClick={() => setPriorityContacts([...priorityContacts, { phone: '', handle: '' }])}
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.3)',
@@ -2826,6 +2681,76 @@ const LinksAndDM = () => {
           >
             💾 Save All Changes
           </button>
+
+          {/* Save & Generate Link Buttons at Bottom */}
+          <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+            <button
+              onClick={async () => {
+                await saveProfile(true);
+                generateShareLink();
+              }}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '12px',
+                border: 'none',
+                fontWeight: '900',
+                cursor: 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.3s',
+                boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)',
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 32px rgba(59, 130, 246, 0.4)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.3)'; }}
+            >
+              🔗 Generate Shareable Link
+            </button>
+            {shareLink && (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '2px solid #3B82F6',
+                borderRadius: '12px',
+                padding: '12px',
+                textAlign: 'center',
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>✅ Link Generated!</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={shareLink}
+                    readOnly
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    style={{
+                      background: copySuccess ? '#10B981' : '#3B82F6',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {copySuccess ? '✅ Copied!' : '📋 Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -2838,7 +2763,7 @@ const LinksAndDM = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: theme.gradient,
+        background: profile.customBgColor ? profile.customBgColor : theme.gradient,
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
@@ -3729,50 +3654,23 @@ const LinksAndDM = () => {
   // DEMO PREVIEW PAGE
   if (currentView === 'demo-preview') {
     const [demoModal, setDemoModal] = useState(null);
-    
-    const demoProfile = {
-      profile: {
-        name: 'Ash',
-        profession: 'Entrepreneur',
-        bio: 'Owner of Ashworldco | Connect • Collaborate • Create',
-        selectedTheme: 0,
-        customBgColor: null,
-      },
-      dmButtons: {
-        bookMeeting: { enabled: true, label: 'Book a Meeting', icon: '📅' },
-        letsConnect: { enabled: true, label: "Let's Connect", icon: '💬' },
-        collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝' },
-        supportCause: { enabled: true, label: 'Support a Cause', icon: '❤️' },
-      },
-      buttonColors: {
-        bookMeeting: { bg: '#B0E0E6', text: '#0066cc' },
-        letsConnect: { bg: '#DDA0DD', text: '#8B008B' },
-        collabRequest: { bg: '#AFEEEE', text: '#008B8B' },
-        supportCause: { bg: '#FFB6D9', text: '#C71585' },
-      },
-      emails: ['ashworldco@gmail.com'],
-      phones: ['12344556789'],
-      websites: ['https://ashworldco.com'],
-      socialHandles: [
-        { platform: 'Instagram', handle: '@ashworldco' },
-      ],
-    };
+    const [demoMessageForm, setDemoMessageForm] = useState({ name: '', contact: '', message: '' });
 
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)',
+        background: 'linear-gradient(135deg, #FFB84D 0%, #FFDA03 50%, #FFE5B4 100%)',
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
-        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
           <button
             onClick={() => setCurrentView('landing')}
             style={{
-              background: 'rgba(255,255,255,0.3)',
+              background: 'rgba(255,255,255,0.4)',
               border: '3px solid white',
               color: 'white',
-              padding: '10px 20px',
+              padding: '12px 24px',
               borderRadius: '12px',
               fontWeight: '700',
               cursor: 'pointer',
@@ -3780,165 +3678,239 @@ const LinksAndDM = () => {
               marginBottom: '20px',
             }}
           >
-            ← Back to Home
+            ← Back
           </button>
 
           <div style={{
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '24px',
+            background: 'linear-gradient(135deg, #FFB6E1 0%, #E0D5FF 100%)',
+            borderRadius: '28px',
             padding: '40px 30px',
             textAlign: 'center',
-            backdropFilter: 'blur(10px)',
           }}>
-            <div style={{ fontSize: '72px', marginBottom: '16px' }}>👤</div>
-            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '900', margin: '0 0 8px 0', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
-              {demoProfile.profile.name}
-            </h1>
-            <p style={{ fontSize: '16px', color: 'white', fontWeight: '700', margin: '0 0 12px 0', opacity: 0.95 }}>
-              {demoProfile.profile.profession}
-            </p>
-            <p style={{ fontSize: '14px', color: 'white', margin: '0 0 24px 0', lineHeight: '1.6', opacity: 0.9 }}>
-              {demoProfile.profile.bio}
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-              {Object.entries(demoProfile.dmButtons).map(([key, button]) => {
-                if (!button.enabled) return null;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setDemoModal(button.icon)}
-                    style={{
-                      background: demoProfile.buttonColors[key]?.bg || '#fff',
-                      color: demoProfile.buttonColors[key]?.text || '#333',
-                      padding: '12px',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontWeight: '900',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                    }}
-                  >
-                    {button.icon} {button.label}
-                  </button>
-                );
-              })}
+            {/* Logo as Profile Pic */}
+            <div style={{
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+              fontSize: '60px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+              border: '5px solid white',
+            }}>
+              🔗
             </div>
 
-            {demoProfile.emails && demoProfile.emails.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                {demoProfile.emails.map((email, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setDemoModal('email')}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      padding: '10px',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontWeight: '700',
-                      fontSize: '14px',
-                      marginBottom: '8px',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    📧 {email}
-                  </button>
-                ))}
-              </div>
-            )}
+            <h1 style={{ fontSize: '32px', color: 'white', fontWeight: '900', margin: '0 0 8px 0', textShadow: '2px 2px 4px rgba(0,0,0,0.2)' }}>
+              Links & DM
+            </h1>
+            <p style={{ fontSize: '16px', color: 'white', fontWeight: '700', margin: '0 0 20px 0' }}>
+              Connect • Collaborate • Create
+            </p>
 
-            {demoProfile.phones && demoProfile.phones.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                {demoProfile.phones.map((phone, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setDemoModal('phone')}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      padding: '10px',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontWeight: '700',
-                      fontSize: '14px',
-                      marginBottom: '8px',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ☎️ {phone}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Message Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              <button
+                onClick={() => setDemoModal('📅')}
+                style={{
+                  background: '#B0E0E6',
+                  color: '#0066cc',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                📅 Book a Meeting
+              </button>
+              <button
+                onClick={() => setDemoModal('💬')}
+                style={{
+                  background: '#FFFF99',
+                  color: '#FF0000',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                💬 Let's Connect
+              </button>
+              <button
+                onClick={() => setDemoModal('🤝')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#008B8B',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                🤝 Collab Request
+              </button>
+              <button
+                onClick={() => setDemoModal('❤️')}
+                style={{
+                  background: '#FFB6D9',
+                  color: '#C71585',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                ❤️ Support a Cause
+              </button>
+            </div>
 
-            {demoProfile.websites && demoProfile.websites.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                {demoProfile.websites.map((website, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setDemoModal('website')}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      padding: '10px',
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      fontWeight: '700',
-                      fontSize: '14px',
-                      marginBottom: '8px',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    🔗 Visit Website
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Link Buttons Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginBottom: '24px',
+            }}>
+              <button
+                onClick={() => setDemoModal('socials')}
+                style={{
+                  background: '#FFB6D9',
+                  color: '#C71585',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                🌐<br/>@ Handles
+              </button>
+              <button
+                onClick={() => setDemoModal('email')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#0066cc',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                📧<br/>@ Email
+              </button>
+              <button
+                onClick={() => setDemoModal('phone')}
+                style={{
+                  background: '#98FF98',
+                  color: '#228B22',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                📱<br/>Contact
+              </button>
+              <button
+                onClick={() => setDemoModal('website')}
+                style={{
+                  background: '#DDA0DD',
+                  color: '#663399',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                🌍<br/>Website
+              </button>
+              <button
+                onClick={() => setDemoModal('portfolio')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#0066cc',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                🎨<br/>Portfolio
+              </button>
+              <button
+                onClick={() => setDemoModal('projects')}
+                style={{
+                  background: '#FFE4B5',
+                  color: '#FF8C00',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                📁<br/>Projects
+              </button>
+            </div>
 
-            {demoProfile.socialHandles && demoProfile.socialHandles.length > 0 && (
-              <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid rgba(255,255,255,0.3)' }}>
-                <p style={{ color: 'white', fontSize: '12px', fontWeight: '700', marginBottom: '12px' }}>Follow</p>
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {demoProfile.socialHandles.map((handle, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setDemoModal('social')}
-                      style={{
-                        background: 'rgba(255,255,255,0.2)',
-                        color: 'white',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        textDecoration: 'none',
-                        fontWeight: '700',
-                        fontSize: '12px',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {handle.platform}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p style={{ color: 'white', fontSize: '12px', marginTop: '24px', fontWeight: '600' }}>
-              ✨ This is a demo. Click any button or link above to see the modal! ✨
+            <p style={{ color: 'white', fontSize: '14px', fontWeight: '600', marginTop: '16px', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+              Ready to connect! 🚀
             </p>
           </div>
         </div>
 
+        {/* Modals */}
         {demoModal && (
           <div style={{
             position: 'fixed',
@@ -3963,30 +3935,109 @@ const LinksAndDM = () => {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>
-                  {demoModal === 'email' && '📧 Email'}
-                  {demoModal === 'phone' && '☎️ Phone'}
-                  {demoModal === 'website' && '🔗 Website'}
-                  {demoModal === 'social' && '📱 Social'}
                   {demoModal === '📅' && '📅 Book a Meeting'}
                   {demoModal === '💬' && '💬 Let\'s Connect'}
                   {demoModal === '🤝' && '🤝 Collab Request'}
                   {demoModal === '❤️' && '❤️ Support a Cause'}
+                  {demoModal === 'email' && '📧 Email'}
+                  {demoModal === 'phone' && '📱 Contact'}
+                  {demoModal === 'website' && '🌍 Website'}
+                  {demoModal === 'socials' && '🌐 Social Handles'}
+                  {demoModal === 'portfolio' && '🎨 Portfolio'}
+                  {demoModal === 'projects' && '📁 Projects'}
                 </h3>
                 <button
                   onClick={() => setDemoModal(null)}
-                  style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                  style={{ fontSize: '28px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}
                 >
                   ×
                 </button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {demoModal === 'email' && (
-                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
-                    ashworldco@gmail.com
-                  </p>
-                )}
-                {demoModal === 'phone' && (
-                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
+
+              {/* Message Forms */}
+              {['📅', '💬', '🤝', '❤️'].includes(demoModal) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={demoMessageForm.name}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, name: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Your Contact (email/phone)"
+                    value={demoMessageForm.contact}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, contact: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <textarea
+                    placeholder="Your Message"
+                    value={demoMessageForm.message}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, message: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      fontFamily: "'Poppins', sans-serif",
+                      resize: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      setDemoModal(null);
+                      setDemoMessageForm({ name: '', contact: '', message: '' });
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                      color: 'white',
+                      padding: '12px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontWeight: '900',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                    }}
+                  >
+                    Send Message ✨
+                  </button>
+                </div>
+              )}
+
+              {/* Link Modals */}
+              {demoModal === 'email' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>📧 Email will open in user's email client</p>}
+              {demoModal === 'phone' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#228B22' }}>📱 Phone will open dialer or WhatsApp</p>}
+              {demoModal === 'website' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#663399' }}>🌍 Website links will open in new tab</p>}
+              {demoModal === 'socials' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#C71585' }}>🌐 All social handles in one place</p>}
+              {demoModal === 'portfolio' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#0066cc' }}>🎨 Showcase your best work</p>}
+              {demoModal === 'projects' && <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#FF8C00' }}>📁 Display your projects</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
                     +1 234-455-6789
                   </p>
                 )}
