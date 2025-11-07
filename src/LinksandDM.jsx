@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -1136,7 +1136,7 @@ const LinksAndDM = () => {
               onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)'; }}
               onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
             >
-              {user ? '✏️ Edit' : "Let's Do It!"}
+              Let's Do It! 🚀
             </button>
           </div>
 
