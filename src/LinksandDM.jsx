@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -9,15 +9,12 @@ class ErrorBoundary extends React.Component {
     super(props);
     this.state = { hasError: false, error: null };
   }
-
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
-
   componentDidCatch(error, errorInfo) {
     console.error('Error Boundary caught:', error, errorInfo);
   }
-
   render() {
     if (this.state.hasError) {
       return (
@@ -61,12 +58,11 @@ class ErrorBoundary extends React.Component {
         </div>
       );
     }
-
     return this.props.children;
   }
 }
 
-// Firebase configuration using environment variables
+// Firebase configuration
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -76,7 +72,6 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID,
 };
 
-// Validate Firebase config
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
   console.error('❌ Firebase configuration incomplete. Check .env file.');
 }
@@ -106,21 +101,19 @@ const LinksAndDM = () => {
     customBgColor: null,
   });
 
-  // Buttons & Links States
+  // Buttons & Links
   const [dmButtons, setDmButtons] = useState({
     bookMeeting: { enabled: true, label: 'Book a Meeting', icon: '📅' },
     letsConnect: { enabled: true, label: "Let's Connect", icon: '💬' },
     collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝' },
     supportCause: { enabled: false, label: 'Support a Cause', icon: '❤️' },
   });
-
   const [buttonColors, setButtonColors] = useState({
     bookMeeting: { bg: '#B0E0E6', text: '#0066cc' },
     letsConnect: { bg: '#DDA0DD', text: '#8B008B' },
     collabRequest: { bg: '#AFEEEE', text: '#008B8B' },
     supportCause: { bg: '#FFB6D9', text: '#C71585' },
   });
-
   const [charityLinks, setCharityLinks] = useState([]);
   const [socialHandles, setSocialHandles] = useState([]);
   const [emails, setEmails] = useState([]);
@@ -130,28 +123,38 @@ const LinksAndDM = () => {
   const [projects, setProjects] = useState({ enabled: false, list: [] });
   const [priorityContacts, setPriorityContacts] = useState([]);
 
-  // Messages States
+  // Messages
   const [messages, setMessages] = useState([]);
   const [messageForm, setMessageForm] = useState({ name: '', contact: '', message: '' });
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [currentMessageType, setCurrentMessageType] = useState(null);
   const [inboxFilter, setInboxFilter] = useState('all');
   const [shareLink, setShareLink] = useState('');
-  // Add loading state for save operations
+
+  // Loading & UI
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-
-  // UI States
   const [showColorPicker, setShowColorPicker] = useState(false);
-  const [colorPickerType, setColorPickerType] = useState(null);
-  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
-  
-  // Public profile route state
   const [publicUsername, setPublicUsername] = useState(null);
   const [publicProfile, setPublicProfile] = useState(null);
   const [publicProfileLoading, setPublicProfileLoading] = useState(false);
 
-  // Check if viewing public profile via URL
+  const themes = [
+    { name: 'Turquoise Dream', gradient: 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)' },
+    { name: 'Ice Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #87CEEB 100%)' },
+    { name: 'Pastel Mint', gradient: 'linear-gradient(135deg, #98FF98 0%, #AFEEEE 100%)' },
+    { name: 'Soft Lavender', gradient: 'linear-gradient(135deg, #DDA0DD 0%, #E6E6FA 100%)' },
+    { name: 'Peach Cream', gradient: 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)' },
+    { name: 'Rose Quartz', gradient: 'linear-gradient(135deg, #FF69B4 0%, #FFB6C1 100%)' },
+    { name: 'Aquamarine', gradient: 'linear-gradient(135deg, #7FFFD4 0%, #40E0D0 100%)' },
+    { name: 'Powder Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #ADD8E6 100%)' },
+    { name: 'Honeydew', gradient: 'linear-gradient(135deg, #F0FFF0 0%, #E0FFE0 100%)' },
+    { name: 'Misty Rose', gradient: 'linear-gradient(135deg, #FFE4E1 0%, #FFE4C4 100%)' },
+    { name: 'Sky', gradient: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)' },
+    { name: 'Orchid Dream', gradient: 'linear-gradient(135deg, #DA70D6 0%, #EE82EE 100%)' },
+  ];
+
+  // Handle public route
   useEffect(() => {
     const checkPublicRoute = async () => {
       if (typeof window !== 'undefined') {
@@ -162,11 +165,8 @@ const LinksAndDM = () => {
           setPublicUsername(username);
           setPublicProfileLoading(true);
           try {
-            // Query for profile by username
-            const q = query(
-              collection(db, 'users'),
-              where('username', '==', username)
-            );
+            // 🔥 FIXED: Query root-level 'username', not 'profile.username'
+            const q = query(collection(db, 'users'), where('username', '==', username));
             const querySnapshot = await getDocs(q);
             if (querySnapshot.docs.length > 0) {
               const profileData = querySnapshot.docs[0].data();
@@ -187,22 +187,7 @@ const LinksAndDM = () => {
     checkPublicRoute();
   }, []);
 
-  const themes = [
-    { name: 'Turquoise Dream', gradient: 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)' },
-    { name: 'Ice Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #87CEEB 100%)' },
-    { name: 'Pastel Mint', gradient: 'linear-gradient(135deg, #98FF98 0%, #AFEEEE 100%)' },
-    { name: 'Soft Lavender', gradient: 'linear-gradient(135deg, #DDA0DD 0%, #E6E6FA 100%)' },
-    { name: 'Peach Cream', gradient: 'linear-gradient(135deg, #FFDAB9 0%, #FFE4B5 100%)' },
-    { name: 'Rose Quartz', gradient: 'linear-gradient(135deg, #FF69B4 0%, #FFB6C1 100%)' },
-    { name: 'Aquamarine', gradient: 'linear-gradient(135deg, #7FFFD4 0%, #40E0D0 100%)' },
-    { name: 'Powder Blue', gradient: 'linear-gradient(135deg, #B0E0E6 0%, #ADD8E6 100%)' },
-    { name: 'Honeydew', gradient: 'linear-gradient(135deg, #F0FFF0 0%, #E0FFE0 100%)' },
-    { name: 'Misty Rose', gradient: 'linear-gradient(135deg, #FFE4E1 0%, #FFE4C4 100%)' },
-    { name: 'Sky', gradient: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)' },
-    { name: 'Orchid Dream', gradient: 'linear-gradient(135deg, #DA70D6 0%, #EE82EE 100%)' },
-  ];
-
-  // Auth Effect
+  // Auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -214,7 +199,6 @@ const LinksAndDM = () => {
     return unsubscribe;
   }, []);
 
-  // Load user profile
   const loadUserProfile = async (uid) => {
     try {
       const docRef = doc(db, 'users', uid);
@@ -239,26 +223,17 @@ const LinksAndDM = () => {
     }
   };
 
-  // Load messages
   const loadMessages = async (uid) => {
     try {
-      const q = query(
-        collection(db, 'messages'),
-        where('recipientId', '==', uid),
-        orderBy('timestamp', 'desc')
-      );
+      const q = query(collection(db, 'messages'), where('recipientId', '==', uid), orderBy('timestamp', 'desc'));
       const querySnapshot = await getDocs(q);
-      const msgs = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const msgs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
   };
 
-  // Save profile to Firebase
   const saveProfile = async () => {
     if (!user || !profile.username.trim()) {
       alert('⚠️ Please enter a username');
@@ -291,22 +266,17 @@ const LinksAndDM = () => {
     }
   };
 
-  // Handle authentication
   const handleAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
-    
-    // Validate inputs
     if (!authEmail || !authPassword) {
       setAuthError('Please fill in all fields');
       return;
     }
-    
     if (authPassword.length < 6) {
       setAuthError('Password must be at least 6 characters');
       return;
     }
-
     try {
       if (authMode === 'signin') {
         await signInWithEmailAndPassword(auth, authEmail, authPassword);
@@ -318,7 +288,6 @@ const LinksAndDM = () => {
       setCurrentView('editor');
     } catch (error) {
       console.error('Auth error:', error);
-      // Provide user-friendly error messages
       if (error.code === 'auth/user-not-found') {
         setAuthError('❌ User not found. Create an account first.');
       } else if (error.code === 'auth/wrong-password') {
@@ -335,40 +304,32 @@ const LinksAndDM = () => {
     }
   };
 
-  // Logout
   const handleLogout = async () => {
     await signOut(auth);
     setCurrentView('landing');
   };
 
-  // Generate share link
   const generateShareLink = () => {
     if (!profile.username.trim()) {
       alert('⚠️ Please set a username first!');
       return;
     }
     try {
-      if (typeof window !== 'undefined' && window.location) {
-        const link = typeof window !== 'undefined' && window.location ? `${window.location.origin}/user/${profile.username}` : `https://linksanddms.netlify.app/user/${profile.username}`;
-        setShareLink(link);
-      } else {
-        // Fallback for SSR or special environments
-        const link = `https://linksanddms.netlify.app/user/${profile.username}`;
-        setShareLink(link);
-      }
+      const link = typeof window !== 'undefined' && window.location
+        ? `${window.location.origin}/user/${profile.username}`
+        : `https://linksanddms.netlify.app/user/${profile.username}`;
+      setShareLink(link);
     } catch (error) {
       console.error('Error generating share link:', error);
       alert('❌ Error generating share link');
     }
   };
 
-  // Copy to clipboard with fallback
   const copyToClipboard = async () => {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(shareLink);
       } else {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = shareLink;
         textArea.style.position = 'fixed';
@@ -382,24 +343,20 @@ const LinksAndDM = () => {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
       console.error('Copy to clipboard failed:', error);
-      alert('❌ Failed to copy link. Please try again.');
+      alert('❌ Failed to copy link.');
     }
   };
 
-  // Send message
   const handleSendMessage = async () => {
     if (!messageForm.name || !messageForm.contact || !messageForm.message) {
       alert('Please fill all fields');
       return;
     }
     try {
-      // If on public preview, find the recipient by username
       let recipientId = user?.uid;
       if (!recipientId && publicUsername) {
-        const q = query(
-          collection(db, 'users'),
-          where('profile.username', '==', publicUsername)
-        );
+        // 🔥 FIXED: Query by root 'username'
+        const q = query(collection(db, 'users'), where('username', '==', publicUsername));
         const querySnapshot = await getDocs(q);
         if (querySnapshot.docs.length === 0) {
           alert('Recipient not found');
@@ -407,35 +364,38 @@ const LinksAndDM = () => {
         }
         recipientId = querySnapshot.docs[0].id;
       }
-
       if (!recipientId) {
         alert('Error: Recipient not found');
         return;
       }
 
-      // Check if sender is in priority contacts
-      const recipientData = (await getDoc(doc(db, 'users', recipientId))).data();
+      const recipientDoc = await getDoc(doc(db, 'users', recipientId));
+      if (!recipientDoc.exists()) {
+        alert('Recipient not found');
+        return;
+      }
+      const recipientData = recipientDoc.data();
       const isPriority = recipientData?.priorityContacts?.some(c => c === messageForm.contact) || false;
 
-      // Get message type label
-      let messageTypeLabel = currentMessageType?.label || currentMessageType || 'Message';
-      if (currentMessageType?.icon && currentMessageType?.label) {
-        messageTypeLabel = `${currentMessageType.icon} ${currentMessageType.label}`;
-      }
+      // 🔥 Ensure emoji is included in message type
+      const fullType = `${currentMessageType.icon} ${currentMessageType.label}`;
 
       await addDoc(collection(db, 'messages'), {
         recipientId,
         senderName: messageForm.name,
         senderContact: messageForm.contact,
         message: messageForm.message,
-        messageType: messageTypeLabel,
+        messageType: fullType,
         timestamp: new Date(),
-        isPriority: isPriority,
+        isPriority,
       });
+
       setMessageForm({ name: '', contact: '', message: '' });
       setShowMessageForm(false);
       alert('✅ Message sent successfully!');
-      if (user) {
+
+      // 🔥 Only reload inbox if user is recipient
+      if (user && recipientId === user.uid) {
         loadMessages(user.uid);
       }
     } catch (error) {
@@ -444,25 +404,22 @@ const LinksAndDM = () => {
     }
   };
 
-  // Filter messages
   const getFilteredMessages = () => {
     let filtered = messages;
     if (inboxFilter === 'all') return filtered;
     if (inboxFilter === 'priority') return filtered.filter(m => m.isPriority);
-    if (inboxFilter === 'meeting') return filtered.filter(m => m.messageType?.includes('📅') || m.messageType?.includes('Book a Meeting'));
-    if (inboxFilter === 'connect') return filtered.filter(m => m.messageType?.includes('💬') || m.messageType?.includes("Let's Connect"));
-    if (inboxFilter === 'collab') return filtered.filter(m => m.messageType?.includes('🤝') || m.messageType?.includes('Collab'));
+    if (inboxFilter === 'meeting') return filtered.filter(m => m.messageType?.includes('📅'));
+    if (inboxFilter === 'connect') return filtered.filter(m => m.messageType?.includes('💬'));
+    if (inboxFilter === 'collab') return filtered.filter(m => m.messageType?.includes('🤝'));
     if (inboxFilter === 'fans') return filtered.filter(m => m.messageType?.includes('❤️') || m.messageType?.includes('Support'));
     return filtered;
   };
 
   const formatUrl = (url) => {
     if (!url) return '';
-    if (url.startsWith('http')) return url;
-    return `https://${url}`;
+    return url.startsWith('http') ? url : `https://${url}`;
   };
 
-  // Delete message
   const deleteMessage = async (msgId) => {
     try {
       await deleteDoc(doc(db, 'messages', msgId));
@@ -475,7 +432,7 @@ const LinksAndDM = () => {
     }
   };
 
-  if (loading) {
+  if (loading || publicProfileLoading) {
     return (
       <div style={{
         display: 'flex',
@@ -494,12 +451,11 @@ const LinksAndDM = () => {
     );
   }
 
-  // PUBLIC PROFILE PAGE (via /user/:username)
+  // PUBLIC PREVIEW
   if (currentView === 'public-preview' && publicProfile) {
     const bgGradient = publicProfile.profile?.customBgColor 
       ? publicProfile.profile.customBgColor
-      : themes[publicProfile.profile?.selectedTheme || 0]?.gradient || 'linear-gradient(135deg, #40E0D0 0%, #20B2AA 100%)';
-    
+      : themes[publicProfile.profile?.selectedTheme || 0]?.gradient || themes[0].gradient;
     return (
       <div style={{
         minHeight: '100vh',
@@ -508,7 +464,6 @@ const LinksAndDM = () => {
         fontFamily: "'Poppins', sans-serif",
       }}>
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-          {/* Profile Section */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             {publicProfile.profile?.profilePic ? (
               <img src={publicProfile.profile.profilePic} alt="Profile" style={{
@@ -567,7 +522,6 @@ const LinksAndDM = () => {
             </p>
           </div>
 
-          {/* DM Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
             {publicProfile.dmButtons?.bookMeeting?.enabled && (
               <button
@@ -587,12 +541,13 @@ const LinksAndDM = () => {
                   gap: '10px',
                   transition: 'all 0.3s',
                 }}
+                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
               >
-                <span style={{ fontSize: '20px' }}>📅</span>
+                <span>📅</span>
                 <span>{publicProfile.dmButtons.bookMeeting.label}</span>
               </button>
             )}
-
             {publicProfile.dmButtons?.letsConnect?.enabled && (
               <button
                 onClick={() => { setCurrentMessageType(publicProfile.dmButtons.letsConnect); setShowMessageForm(true); }}
@@ -611,12 +566,13 @@ const LinksAndDM = () => {
                   gap: '10px',
                   transition: 'all 0.3s',
                 }}
+                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
               >
-                <span style={{ fontSize: '20px' }}>💬</span>
+                <span>💬</span>
                 <span>{publicProfile.dmButtons.letsConnect.label}</span>
               </button>
             )}
-
             {publicProfile.dmButtons?.collabRequest?.enabled && (
               <button
                 onClick={() => { setCurrentMessageType(publicProfile.dmButtons.collabRequest); setShowMessageForm(true); }}
@@ -635,12 +591,13 @@ const LinksAndDM = () => {
                   gap: '10px',
                   transition: 'all 0.3s',
                 }}
+                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
               >
-                <span style={{ fontSize: '20px' }}>🤝</span>
+                <span>🤝</span>
                 <span>{publicProfile.dmButtons.collabRequest.label}</span>
               </button>
             )}
-
             {publicProfile.dmButtons?.supportCause?.enabled && (
               <button
                 onClick={() => { setCurrentMessageType(publicProfile.dmButtons.supportCause); setShowMessageForm(true); }}
@@ -659,14 +616,15 @@ const LinksAndDM = () => {
                   gap: '10px',
                   transition: 'all 0.3s',
                 }}
+                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
               >
-                <span style={{ fontSize: '20px' }}>❤️</span>
+                <span>❤️</span>
                 <span>{publicProfile.dmButtons.supportCause.label}</span>
               </button>
             )}
           </div>
 
-          {/* Contact Cards Grid */}
           {(publicProfile.socialHandles?.length > 0 || publicProfile.emails?.length > 0 || 
             publicProfile.phones?.length > 0 || publicProfile.websites?.length > 0 ||
             publicProfile.portfolio?.enabled || publicProfile.projects?.enabled) && (
@@ -678,10 +636,7 @@ const LinksAndDM = () => {
             }}>
               {publicProfile.socialHandles?.length > 0 && (
                 <button
-                  onClick={() => {
-                    const handle = publicProfile.socialHandles[0];
-                    window.open(`https://instagram.com/${handle}`, '_blank');
-                  }}
+                  onClick={() => setCurrentView('handles-modal')}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -698,23 +653,16 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>🌐</div>
-                  <div style={{ fontSize: '15px' }}>@ Socials</div>
+                  <div>🌐</div>
+                  <div>@ Socials</div>
                 </button>
               )}
-
               {publicProfile.emails?.length > 0 && (
                 <button
-                  onClick={() => window.location.href = `mailto:${publicProfile.emails[0]}`}
+                  onClick={() => setCurrentView('email-modal')}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -731,23 +679,16 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>📧</div>
-                  <div style={{ fontSize: '15px' }}>@ Email</div>
+                  <div>📧</div>
+                  <div>@ Email</div>
                 </button>
               )}
-
               {publicProfile.phones?.length > 0 && (
                 <button
-                  onClick={() => window.location.href = `tel:${publicProfile.phones[0]}`}
+                  onClick={() => setCurrentView('contact-modal')}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -764,23 +705,16 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>📱</div>
-                  <div style={{ fontSize: '15px' }}>Call</div>
+                  <div>📱</div>
+                  <div>Call</div>
                 </button>
               )}
-
               {publicProfile.websites?.length > 0 && (
                 <button
-                  onClick={() => window.open(formatUrl(publicProfile.websites[0]), '_blank')}
+                  onClick={() => setCurrentView('website-modal')}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -797,20 +731,13 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>🌍</div>
-                  <div style={{ fontSize: '15px' }}>Website</div>
+                  <div>🌍</div>
+                  <div>Website</div>
                 </button>
               )}
-
               {publicProfile.portfolio?.enabled && (
                 <button
                   onClick={() => window.open(formatUrl(publicProfile.portfolio.url), '_blank')}
@@ -830,28 +757,24 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-                    e.currentTarget.style.transform = 'scale(1.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                    e.currentTarget.style.transform = 'scale(1)';
-                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>🎨</div>
-                  <div style={{ fontSize: '15px' }}>Portfolio</div>
+                  <div>🎨</div>
+                  <div>Portfolio</div>
                 </button>
               )}
-
               {publicProfile.projects?.enabled && (
-                <div
+                <button
+                  onClick={() => setCurrentView('projects-modal')}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
                     padding: '20px',
                     textAlign: 'center',
+                    cursor: 'pointer',
                     border: '3px solid rgba(255,255,255,0.4)',
+                    transition: 'all 0.2s',
                     color: 'white',
                     fontWeight: '900',
                     fontSize: '16px',
@@ -860,15 +783,16 @@ const LinksAndDM = () => {
                     alignItems: 'center',
                     gap: '8px',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.3)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.2)'; e.currentTarget.style.transform = 'scale(1)'; }}
                 >
-                  <div style={{ fontSize: '32px' }}>📁</div>
-                  <div style={{ fontSize: '15px' }}>Projects</div>
-                </div>
+                  <div>📁</div>
+                  <div>Projects</div>
+                </button>
               )}
             </div>
           )}
 
-          {/* Charity Links */}
           {publicProfile.charityLinks?.length > 0 && (
             <div style={{
               background: 'rgba(255,255,255,0.15)',
@@ -884,7 +808,7 @@ const LinksAndDM = () => {
                 {publicProfile.charityLinks.map((link, idx) => (
                   <button
                     key={idx}
-                    onClick={() => window.open(formatUrl(link), '_blank')}
+                    onClick={() => window.open(formatUrl(link.url), '_blank')}
                     style={{
                       padding: '8px 12px',
                       background: 'rgba(255,255,255,0.3)',
@@ -896,23 +820,310 @@ const LinksAndDM = () => {
                       fontSize: '15px',
                       transition: 'all 0.2s',
                     }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'rgba(255,255,255,0.5)';
-                      e.target.style.transform = 'scale(1.05)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'rgba(255,255,255,0.3)';
-                      e.target.style.transform = 'scale(1)';
-                    }}
+                    onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; e.target.style.transform = 'scale(1.05)'; }}
+                    onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; e.target.style.transform = 'scale(1)'; }}
                   >
-                    🔗 {link}
+                    🔗 {link.name}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Message Form Modal */}
+          {/* Modals for public preview */}
+          {currentView === 'handles-modal' && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌐 Handles</h3>
+                  <button
+                    onClick={() => setCurrentView('public-preview')}
+                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {publicProfile.socialHandles.map((handle, idx) => (
+                    <a
+                      key={idx}
+                      href={`https://${handle.platform.toLowerCase()}.com/${handle.handle.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
+                    >
+                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{handle.platform}</p>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#0066cc', margin: 0 }}>{handle.handle}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'email-modal' && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📧 Email</h3>
+                  <button
+                    onClick={() => setCurrentView('public-preview')}
+                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {publicProfile.emails.map((email, idx) => (
+                    <a
+                      key={idx}
+                      href={`mailto:${email}`}
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#1E90FF', margin: 0 }}>{email}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'contact-modal' && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📱 Contact</h3>
+                  <button
+                    onClick={() => setCurrentView('public-preview')}
+                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {publicProfile.phones.map((phone, idx) => (
+                    <a
+                      key={idx}
+                      href={`tel:${phone}`}
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#228B22', margin: 0 }}>{phone}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'website-modal' && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌍 Website</h3>
+                  <button
+                    onClick={() => setCurrentView('public-preview')}
+                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {publicProfile.websites.map((website, idx) => (
+                    <a
+                      key={idx}
+                      href={formatUrl(website)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#663399', margin: 0 }}>{website}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'projects-modal' && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}>
+              <div style={{
+                background: 'white',
+                borderRadius: '20px',
+                padding: '30px',
+                maxWidth: '400px',
+                width: '100%',
+                maxHeight: '80vh',
+                overflowY: 'auto',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📁 Projects</h3>
+                  <button
+                    onClick={() => setCurrentView('public-preview')}
+                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    ×
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {publicProfile.projects.list.map((project, idx) => (
+                    <a
+                      key={idx}
+                      href={formatUrl(project.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
+                    >
+                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#FF8C00', margin: 0 }}>{project.title}</p>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {showMessageForm && currentMessageType && (
             <div style={{
               position: 'fixed',
@@ -937,7 +1148,7 @@ const LinksAndDM = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h3 style={{ fontSize: '20px', color: '#333', fontWeight: '900', margin: 0 }}>
-                    Send Message {currentMessageType.icon}
+                    Send Message {currentMessageType?.icon}
                   </h3>
                   <button
                     onClick={() => setShowMessageForm(false)}
@@ -952,7 +1163,6 @@ const LinksAndDM = () => {
                     ×
                   </button>
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Name</label>
@@ -972,7 +1182,6 @@ const LinksAndDM = () => {
                       }}
                     />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Email or Contact</label>
                     <input
@@ -991,7 +1200,6 @@ const LinksAndDM = () => {
                       }}
                     />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Message</label>
                     <textarea
@@ -1011,7 +1219,6 @@ const LinksAndDM = () => {
                       }}
                     />
                   </div>
-
                   <button
                     onClick={handleSendMessage}
                     style={{
@@ -1037,7 +1244,7 @@ const LinksAndDM = () => {
     );
   }
 
-  // NOT FOUND PAGE
+  // NOT FOUND
   if (currentView === 'not-found') {
     return (
       <div style={{
@@ -1061,11 +1268,7 @@ const LinksAndDM = () => {
           <h2 style={{ fontSize: '24px', color: '#333', marginBottom: '16px', fontWeight: '900' }}>Profile Not Found</h2>
           <p style={{ color: '#666', marginBottom: '30px', fontSize: '16px' }}>The profile you're looking for doesn't exist.</p>
           <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.location.href = '/';
-              }
-            }}
+            onClick={() => { window.location.href = '/'; }}
             style={{
               background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
               color: 'white',
@@ -1080,25 +1283,6 @@ const LinksAndDM = () => {
             ← Go Home
           </button>
         </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f591ba 0%, #f2bc7c 50%, #7fda7f 100%)',
-        fontFamily: "'Poppins', sans-serif",
-      }}>
-        <div style={{ textAlign: 'center', color: 'white' }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px', animation: 'spin 1s linear infinite' }}>⏳</div>
-          <p style={{ fontSize: '20px', fontWeight: 'bold' }}>Loading Links & DM...</p>
-        </div>
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -1122,7 +1306,7 @@ const LinksAndDM = () => {
               margin: 0,
             }}>🔗 Links & DM 💬</h1>
             <button
-              onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
+              onClick={() => setCurrentView('auth')}
               style={{
                 background: 'white',
                 color: '#8B5CF6',
@@ -1137,10 +1321,9 @@ const LinksAndDM = () => {
               onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)'; }}
               onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
             >
-              {user ? '✏️ Edit' : "Let's Do It!"}
-            </button>
+              Let's Do It!
+            </button> {/* 🔥 FIXED TEXT */}
           </div>
-
           <div style={{ textAlign: 'center', marginBottom: '80px' }}>
             <h2 style={{
               fontSize: '72px',
@@ -1166,7 +1349,6 @@ const LinksAndDM = () => {
               margin: '0 auto',
             }}>Connect with followers • Organize messages • Manage links • Build your brand</p>
           </div>
-
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -1199,7 +1381,6 @@ const LinksAndDM = () => {
               </div>
             ))}
           </div>
-
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <button
               onClick={() => setCurrentView('auth')}
@@ -1242,7 +1423,6 @@ const LinksAndDM = () => {
               See Demo ✨
             </button>
           </div>
-
           <div style={{ textAlign: 'center', color: 'white', fontWeight: '700', fontSize: '16px' }}>
             <p>Trusted by Influencers • Celebrities • Entrepreneurs 💎</p>
           </div>
@@ -1272,10 +1452,9 @@ const LinksAndDM = () => {
           boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           border: '3px solid #E9D5FF',
         }}>
-          <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '30px', fontSize: '24px', fontWeight: '900', margin: 0, marginBottom: '30px' }}>
+          <h2 style={{ textAlign: 'center', color: '#333', marginBottom: '30px', fontSize: '24px', fontWeight: '900' }}>
             {authMode === 'signin' ? '🔐 Sign In' : '📝 Sign Up'}
           </h2>
-
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#333', fontSize: '14px' }}>Email</label>
@@ -1296,7 +1475,6 @@ const LinksAndDM = () => {
                 }}
               />
             </div>
-
             <div>
               <label style={{ display: 'block', fontWeight: '700', marginBottom: '8px', color: '#333', fontSize: '14px' }}>Password</label>
               <input
@@ -1316,9 +1494,7 @@ const LinksAndDM = () => {
                 }}
               />
             </div>
-
             {authError && <p style={{ color: '#dc2626', fontSize: '16px', margin: 0, fontWeight: '600' }}>❌ {authError}</p>}
-
             <button
               type="submit"
               style={{
@@ -1333,13 +1509,10 @@ const LinksAndDM = () => {
                 marginTop: '10px',
                 transition: 'all 0.3s',
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.02)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
             >
               {authMode === 'signin' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
-
           <div style={{ textAlign: 'center', marginTop: '20px' }}>
             <button
               onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
@@ -1356,7 +1529,6 @@ const LinksAndDM = () => {
               {authMode === 'signin' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
             </button>
           </div>
-
           <button
             onClick={() => setCurrentView('landing')}
             style={{
@@ -1389,107 +1561,33 @@ const LinksAndDM = () => {
         fontFamily: "'Poppins', sans-serif",
       }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          {/* Header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '12px', flexWrap: 'wrap' }}>
             <h1 style={{ fontSize: '32px', color: 'white', fontWeight: '900', margin: 0 }}>✏️ Edit Profile</h1>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => saveProfile()}
-                style={{
-                  background: '#10B981',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={() => saveProfile()} style={{ background: '#10B981', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
                 💾 Save
               </button>
-              <button
-                onClick={() => { saveProfile(); setCurrentView('preview'); }}
-                style={{
-                  background: '#3B82F6',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={() => { saveProfile(); setCurrentView('preview'); }} style={{ background: '#3B82F6', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
                 👁️ Preview
               </button>
-              <button
-                onClick={() => setCurrentView('inbox')}
-                style={{
-                  background: '#8B5CF6',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={() => setCurrentView('inbox')} style={{ background: '#8B5CF6', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
                 📬 Inbox ({messages.length})
               </button>
-              <button
-                onClick={handleLogout}
-                style={{
-                  background: '#dc2626',
-                  color: 'white',
-                  padding: '10px 20px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={handleLogout} style={{ background: '#dc2626', color: 'white', padding: '10px 20px', borderRadius: '12px', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
                 🚪 Logout
               </button>
             </div>
           </div>
 
           {/* Profile Section */}
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: '#333', marginBottom: '20px', fontWeight: '900', margin: 0, marginBottom: '20px' }}>👤 Profile</h2>
-
-            {/* Profile Picture */}
+          <div style={{ background: 'white', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ fontSize: '20px', color: '#333', marginBottom: '20px', fontWeight: '900', margin: 0 }}>👤 Profile</h2>
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
               <label style={{ cursor: 'pointer' }}>
                 {profile.profilePic ? (
-                  <img src={profile.profilePic} alt="Profile" style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '4px solid #A855F7',
-                  }} />
+                  <img src={profile.profilePic} alt="Profile" style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #A855F7' }} />
                 ) : (
-                  <div style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '50%',
-                    background: '#F3F4F6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '48px',
-                    border: '4px solid #A855F7',
-                    margin: '0 auto',
-                  }}>
+                  <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '48px', border: '4px solid #A855F7', margin: '0 auto' }}>
                     📸
                   </div>
                 )}
@@ -1510,64 +1608,46 @@ const LinksAndDM = () => {
                 />
               </label>
             </div>
-
-            {/* Basic Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Name</label>
-                <input
-                  type="text"
-                  value={profile.name}
-                  onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    fontWeight: '600',
-                    boxSizing: 'border-box',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Profession</label>
-                <input
-                  type="text"
-                  value={profile.profession}
-                  onChange={(e) => setProfile(prev => ({ ...prev, profession: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    fontWeight: '600',
-                    boxSizing: 'border-box',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Bio</label>
-                <textarea
-                  value={profile.bio}
-                  onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
-                  style={{
-                    width: '100%',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    fontWeight: '600',
-                    boxSizing: 'border-box',
-                    minHeight: '80px',
-                    resize: 'vertical',
-                    fontSize: '14px',
-                  }}
-                />
-              </div>
-
+              {['name', 'profession', 'bio'].map(field => (
+                <div key={field}>
+                  <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>
+                    {field.charAt(0).toUpperCase() + field.slice(1)}
+                  </label>
+                  {field === 'bio' ? (
+                    <textarea
+                      value={profile[field]}
+                      onChange={(e) => setProfile(prev => ({ ...prev, [field]: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        border: '2px solid #E5E7EB',
+                        borderRadius: '12px',
+                        padding: '10px',
+                        fontWeight: '600',
+                        boxSizing: 'border-box',
+                        minHeight: '80px',
+                        resize: 'vertical',
+                        fontSize: '14px',
+                      }}
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={profile[field]}
+                      onChange={(e) => setProfile(prev => ({ ...prev, [field]: e.target.value }))}
+                      style={{
+                        width: '100%',
+                        border: '2px solid #E5E7EB',
+                        borderRadius: '12px',
+                        padding: '10px',
+                        fontWeight: '600',
+                        boxSizing: 'border-box',
+                        fontSize: '14px',
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
               <div>
                 <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>📱 Username (for shareable link)</label>
                 <input
@@ -1606,12 +1686,7 @@ const LinksAndDM = () => {
                       🔗 Generate Share Link
                     </button>
                     {shareLink && (
-                      <div style={{
-                        background: '#F3F4F6',
-                        padding: '12px',
-                        borderRadius: '12px',
-                        marginBottom: '10px',
-                      }}>
+                      <div style={{ background: '#F3F4F6', padding: '12px', borderRadius: '12px', marginBottom: '10px' }}>
                         <p style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#666', fontWeight: '700' }}>📱 Your Shareable Link:</p>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                           <input
@@ -1655,119 +1730,40 @@ const LinksAndDM = () => {
           </div>
 
           {/* Smart DM Buttons */}
-          <div style={{
-            background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          <div style={{ background: 'linear-gradient(135deg, #EC4899 0%, #F43F5E 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: 0 }}>💌 Smart DM Buttons</h2>
-              <button
-                onClick={() => setShowColorPicker(!showColorPicker)}
-                style={{
-                  background: 'white',
-                  color: '#EC4899',
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
+              <button onClick={() => setShowColorPicker(!showColorPicker)} style={{ background: 'white', color: '#EC4899', padding: '8px 16px', borderRadius: '20px', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
                 🎨 Colors
               </button>
             </div>
-
             {showColorPicker && (
-              <div style={{
-                background: 'rgba(255,255,255,0.95)',
-                borderRadius: '16px',
-                padding: '20px',
-                marginBottom: '20px',
-                maxHeight: '300px',
-                overflowY: 'auto',
-              }}>
+              <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '16px', padding: '20px', marginBottom: '20px', maxHeight: '300px', overflowY: 'auto', maxWidth: '100%', boxSizing: 'border-box' }}>
                 {Object.entries(dmButtons).map(([key, btn]) => (
-                  <div key={key} style={{
-                    background: '#F3F4F6',
-                    padding: '12px',
-                    borderRadius: '12px',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'center',
-                  }}>
-                    <div style={{
-                      background: buttonColors[key].bg,
-                      color: buttonColors[key].text,
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '700',
-                    }}>
+                  <div key={key} style={{ background: '#F3F4F6', padding: '12px', borderRadius: '12px', marginBottom: '12px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ background: buttonColors[key].bg, color: buttonColors[key].text, width: '40px', height: '40px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700' }}>
                       {btn.icon}
                     </div>
                     <div style={{ flex: 1 }}>
                       <p style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#333' }}>{btn.label}</p>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="color"
-                        value={buttonColors[key].bg}
-                        onChange={(e) => setButtonColors(prev => ({
-                          ...prev,
-                          [key]: { ...prev[key], bg: e.target.value }
-                        }))}
-                        style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-                      />
-                      <input
-                        type="color"
-                        value={buttonColors[key].text}
-                        onChange={(e) => setButtonColors(prev => ({
-                          ...prev,
-                          [key]: { ...prev[key], text: e.target.value }
-                        }))}
-                        style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-                      />
+                      <input type="color" value={buttonColors[key].bg} onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], bg: e.target.value } }))} style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
+                      <input type="color" value={buttonColors[key].text} onChange={(e) => setButtonColors(prev => ({ ...prev, [key]: { ...prev[key], text: e.target.value } }))} style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
                     </div>
                   </div>
                 ))}
               </div>
             )}
-
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {Object.entries(dmButtons).map(([key, btn]) => (
-                <div key={key} style={{
-                  background: 'rgba(255,255,255,0.95)',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={btn.enabled}
-                    onChange={() => setDmButtons(prev => ({
-                      ...prev,
-                      [key]: { ...prev[key], enabled: !prev[key].enabled }
-                    }))}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                  />
+                <div key={key} style={{ background: 'rgba(255,255,255,0.95)', padding: '12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <input type="checkbox" checked={btn.enabled} onChange={() => setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], enabled: !prev[key].enabled } }))} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
                   <span style={{ fontSize: '20px' }}>{btn.icon}</span>
                   <input
                     type="text"
                     value={btn.label}
-                    onChange={(e) => setDmButtons(prev => ({
-                      ...prev,
-                      [key]: { ...prev[key], label: e.target.value }
-                    }))}
+                    onChange={(e) => setDmButtons(prev => ({ ...prev, [key]: { ...prev[key], label: e.target.value } }))}
                     style={{
                       flex: 1,
                       border: '1px solid #ddd',
@@ -1775,16 +1771,11 @@ const LinksAndDM = () => {
                       padding: '8px',
                       fontWeight: '600',
                       fontSize: '14px',
+                      minWidth: '150px',
+                      boxSizing: 'border-box',
                     }}
                   />
-                  <div style={{
-                    background: buttonColors[key].bg,
-                    color: buttonColors[key].text,
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '15px',
-                  }}>
+                  <div style={{ background: buttonColors[key].bg, color: buttonColors[key].text, padding: '6px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '15px', whiteSpace: 'nowrap' }}>
                     Preview
                   </div>
                 </div>
@@ -1793,17 +1784,11 @@ const LinksAndDM = () => {
           </div>
 
           {/* Charity Links */}
-          <div style={{
-            background: 'linear-gradient(135deg, #EC4899 0%, #F87171 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          <div style={{ background: 'linear-gradient(135deg, #EC4899 0%, #F87171 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>❤️ Charity / Cause Links</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
               {charityLinks.map((charity, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <input
                     type="text"
                     value={charity.name}
@@ -1815,6 +1800,7 @@ const LinksAndDM = () => {
                     placeholder="Cause name"
                     style={{
                       flex: 0.3,
+                      minWidth: '100px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
                       padding: '8px',
@@ -1834,6 +1820,7 @@ const LinksAndDM = () => {
                     placeholder="https://..."
                     style={{
                       flex: 0.7,
+                      minWidth: '200px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
                       padding: '8px',
@@ -1853,6 +1840,7 @@ const LinksAndDM = () => {
                       fontWeight: '700',
                       cursor: 'pointer',
                       fontSize: '15px',
+                      flexShrink: 0,
                     }}
                   >
                     ✕
@@ -1860,36 +1848,17 @@ const LinksAndDM = () => {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setCharityLinks([...charityLinks, { name: '', url: '' }])}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                padding: '10px',
-                border: '2px dashed white',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
+            <button onClick={() => setCharityLinks([...charityLinks, { name: '', url: '' }])} style={{ width: '100%', background: 'rgba(255,255,255,0.3)', color: 'white', padding: '10px', border: '2px dashed white', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
               + Add Charity Link
             </button>
           </div>
 
           {/* Social Handles */}
-          <div style={{
-            background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          <div style={{ background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>🌐 Social Handles</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
               {socialHandles.map((handle, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <input
                     type="text"
                     value={handle.platform}
@@ -1901,6 +1870,7 @@ const LinksAndDM = () => {
                     placeholder="Instagram"
                     style={{
                       flex: 0.4,
+                      minWidth: '100px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
                       padding: '8px',
@@ -1920,6 +1890,7 @@ const LinksAndDM = () => {
                     placeholder="@yourhandle"
                     style={{
                       flex: 0.6,
+                      minWidth: '150px',
                       border: '1px solid #fff',
                       borderRadius: '8px',
                       padding: '8px',
@@ -1939,6 +1910,7 @@ const LinksAndDM = () => {
                       fontWeight: '700',
                       cursor: 'pointer',
                       fontSize: '15px',
+                      flexShrink: 0,
                     }}
                   >
                     ✕
@@ -1946,241 +1918,87 @@ const LinksAndDM = () => {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setSocialHandles([...socialHandles, { platform: '', handle: '' }])}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                padding: '10px',
-                border: '2px dashed white',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
+            <button onClick={() => setSocialHandles([...socialHandles, { platform: '', handle: '' }])} style={{ width: '100%', background: 'rgba(255,255,255,0.3)', color: 'white', padding: '10px', border: '2px dashed white', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
               + Add Handle
             </button>
           </div>
 
-          {/* Emails */}
-          <div style={{
-            background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>📧 Email Addresses</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-              {emails.map((email, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => {
-                      const newEmails = [...emails];
-                      newEmails[idx] = e.target.value;
-                      setEmails(newEmails);
-                    }}
-                    placeholder="email@example.com"
-                    style={{
-                      flex: 1,
-                      border: '1px solid #fff',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontWeight: '600',
-                      fontSize: '15px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <button
-                    onClick={() => setEmails(emails.filter((_, i) => i !== idx))}
-                    style={{
-                      background: 'rgba(255,255,255,0.3)',
-                      color: 'white',
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      fontSize: '15px',
-                    }}
-                  >
-                    ✕
-                  </button>
+          {/* Emails, Phones, Websites, Portfolio, Projects — same pattern with boxSizing */}
+          {[
+            { key: 'emails', title: '📧 Email Addresses', placeholder: 'email@example.com', type: 'email' },
+            { key: 'phones', title: '📱 Contact Numbers', placeholder: '+1 (555) 123-4567', type: 'tel' },
+            { key: 'websites', title: '🌍 Website / Store', placeholder: 'https://yourwebsite.com', type: 'url' },
+          ].map(({ key, title, placeholder, type }) => {
+            const state = key === 'emails' ? emails : key === 'phones' ? phones : websites;
+            const setState = key === 'emails' ? setEmails : key === 'phones' ? setPhones : setWebsites;
+            return (
+              <div key={key} style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
+                <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>{title}</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+                  {state.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type={type}
+                        value={item}
+                        onChange={(e) => {
+                          const newState = [...state];
+                          newState[idx] = e.target.value;
+                          setState(newState);
+                        }}
+                        placeholder={placeholder}
+                        style={{
+                          flex: 1,
+                          border: '1px solid #fff',
+                          borderRadius: '8px',
+                          padding: '8px',
+                          fontWeight: '600',
+                          fontSize: '15px',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        onClick={() => setState(state.filter((_, i) => i !== idx))}
+                        style={{
+                          background: 'rgba(255,255,255,0.3)',
+                          color: 'white',
+                          padding: '8px 12px',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          fontSize: '15px',
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setEmails([...emails, ''])}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                padding: '10px',
-                border: '2px dashed white',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              + Add Email
-            </button>
-          </div>
-
-          {/* Phones */}
-          <div style={{
-            background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>📱 Contact Numbers</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-              {phones.map((phone, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => {
-                      const newPhones = [...phones];
-                      newPhones[idx] = e.target.value;
-                      setPhones(newPhones);
-                    }}
-                    placeholder="+1 (555) 123-4567"
-                    style={{
-                      flex: 1,
-                      border: '1px solid #fff',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontWeight: '600',
-                      fontSize: '15px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <button
-                    onClick={() => setPhones(phones.filter((_, i) => i !== idx))}
-                    style={{
-                      background: 'rgba(255,255,255,0.3)',
-                      color: 'white',
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      fontSize: '15px',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setPhones([...phones, ''])}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                padding: '10px',
-                border: '2px dashed white',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              + Add Phone
-            </button>
-          </div>
-
-          {/* Websites */}
-          <div style={{
-            background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>🌍 Website / Store</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-              {websites.map((website, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="url"
-                    value={website}
-                    onChange={(e) => {
-                      const newWebsites = [...websites];
-                      newWebsites[idx] = e.target.value;
-                      setWebsites(newWebsites);
-                    }}
-                    placeholder="https://yourwebsite.com"
-                    style={{
-                      flex: 1,
-                      border: '1px solid #fff',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontWeight: '600',
-                      fontSize: '15px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <button
-                    onClick={() => setWebsites(websites.filter((_, i) => i !== idx))}
-                    style={{
-                      background: 'rgba(255,255,255,0.3)',
-                      color: 'white',
-                      padding: '8px 12px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      fontSize: '15px',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setWebsites([...websites, ''])}
-              style={{
-                width: '100%',
-                background: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                padding: '10px',
-                border: '2px dashed white',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              + Add Website
-            </button>
-          </div>
+                <button
+                  onClick={() => setState([...state, ''])}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    padding: '10px',
+                    border: '2px dashed white',
+                    borderRadius: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                  }}
+                >
+                  + Add {key === 'emails' ? 'Email' : key === 'phones' ? 'Phone' : 'Website'}
+                </button>
+              </div>
+            );
+          })}
 
           {/* Portfolio */}
-          <div style={{
-            background: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          <div style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>🎨 Portfolio</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <input
-                type="checkbox"
-                checked={portfolio.enabled}
-                onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))}
-                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-              />
+              <input type="checkbox" checked={portfolio.enabled} onChange={(e) => setPortfolio(prev => ({ ...prev, enabled: e.target.checked }))} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
               <label style={{ fontWeight: '700', cursor: 'pointer', color: 'white' }}>Enable Portfolio</label>
             </div>
             {portfolio.enabled && (
@@ -2203,28 +2021,17 @@ const LinksAndDM = () => {
           </div>
 
           {/* Projects */}
-          <div style={{
-            background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          <div style={{ background: 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>📁 Latest Projects</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <input
-                type="checkbox"
-                checked={projects.enabled}
-                onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))}
-                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-              />
+              <input type="checkbox" checked={projects.enabled} onChange={(e) => setProjects(prev => ({ ...prev, enabled: e.target.checked }))} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />
               <label style={{ fontWeight: '700', cursor: 'pointer', color: 'white' }}>Enable Projects</label>
             </div>
             {projects.enabled && (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
                   {projects.list.map((project, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                    <div key={idx} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                       <input
                         type="text"
                         value={project.title}
@@ -2236,6 +2043,7 @@ const LinksAndDM = () => {
                         placeholder="Project Title"
                         style={{
                           flex: 0.4,
+                          minWidth: '120px',
                           border: '1px solid #fff',
                           borderRadius: '8px',
                           padding: '8px',
@@ -2255,6 +2063,7 @@ const LinksAndDM = () => {
                         placeholder="https://..."
                         style={{
                           flex: 0.6,
+                          minWidth: '180px',
                           border: '1px solid #fff',
                           borderRadius: '8px',
                           padding: '8px',
@@ -2277,6 +2086,7 @@ const LinksAndDM = () => {
                           fontWeight: '700',
                           cursor: 'pointer',
                           fontSize: '15px',
+                          flexShrink: 0,
                         }}
                       >
                         ✕
@@ -2304,107 +2114,8 @@ const LinksAndDM = () => {
             )}
           </div>
 
-          {/* Choose Theme */}
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: '#333', fontWeight: '900', margin: '0 0 20px 0' }}>🎨 Choose Theme</h2>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-              gap: '12px',
-            }}>
-              {themes.map((theme, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setProfile(prev => ({ ...prev, selectedTheme: idx }))}
-                  style={{
-                    background: theme.gradient,
-                    border: profile.selectedTheme === idx ? '4px solid #333' : '2px solid #ddd',
-                    borderRadius: '16px',
-                    padding: '20px',
-                    cursor: 'pointer',
-                    fontWeight: '700',
-                    fontSize: '11px',
-                    color: 'white',
-                    textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; }}
-                  onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
-                >
-                  {theme.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Background Color */}
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ fontSize: '20px', color: '#333', fontWeight: '900', margin: '0 0 20px 0' }}>🎯 Custom Background Color</h2>
-            <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px', fontWeight: '600' }}>Create your unique look with a custom background color</p>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <input
-                type="color"
-                value={profile.customBgColor || '#FFB347'}
-                onChange={(e) => setProfile(prev => ({ ...prev, customBgColor: e.target.value }))}
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  border: '3px solid #ddd',
-                  borderRadius: '16px',
-                  cursor: 'pointer',
-                }}
-              />
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: '#333' }}>Selected Color</p>
-                <div style={{
-                  background: profile.customBgColor || '#FFB347',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  textAlign: 'center',
-                  fontWeight: '700',
-                  color: 'white',
-                  textShadow: '1px 1px 2px rgba(0,0,0,0.3)',
-                }}>
-                  {profile.customBgColor || '#FFB347'}
-                </div>
-              </div>
-            </div>
-            <button
-              onClick={() => setProfile(prev => ({ ...prev, customBgColor: null }))}
-              style={{
-                marginTop: '12px',
-                background: '#f0f0f0',
-                color: '#333',
-                border: '2px solid #ddd',
-                borderRadius: '12px',
-                padding: '10px 16px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              Reset to Theme Colors
-            </button>
-          </div>
-          <div style={{
-            background: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
-            borderRadius: '20px',
-            padding: '30px',
-            marginBottom: '20px',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
-          }}>
+          {/* Friends & Family */}
+          <div style={{ background: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)', borderRadius: '20px', padding: '30px', marginBottom: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>⭐ Friends & Family (Priority)</h2>
             <p style={{ color: 'white', fontWeight: '600', marginBottom: '12px', fontSize: '14px' }}>Messages from these contacts will appear with a ⭐</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
@@ -2448,7 +2159,7 @@ const LinksAndDM = () => {
               ))}
             </div>
             <button
-              onClick={() => setPriorityContacts([...priorityContacts, { handle: '' }])}
+              onClick={() => setPriorityContacts([...priorityContacts, ''])}
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.3)',
@@ -2482,8 +2193,6 @@ const LinksAndDM = () => {
               boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
               transition: 'all 0.3s',
             }}
-            onMouseEnter={(e) => { e.target.style.transform = 'scale(1.02)'; }}
-            onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
           >
             💾 Save All Changes
           </button>
@@ -2495,794 +2204,202 @@ const LinksAndDM = () => {
   // PREVIEW PAGE
   if (currentView === 'preview') {
     const theme = themes[profile.selectedTheme];
-
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: theme.gradient,
-        padding: '20px',
-        fontFamily: "'Poppins', sans-serif",
-      }}>
+      <div style={{ minHeight: '100vh', background: theme.gradient, padding: '20px', fontFamily: "'Poppins', sans-serif" }}>
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <h1 style={{
-              fontSize: '24px',
-              fontWeight: '900',
-              color: 'white',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-              margin: '0 0 8px 0',
-            }}>🔗 Links & DM 💬</h1>
-            <p style={{
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: '700',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              margin: 0,
-            }}>Connect • Collaborate • Create</p>
+            <h1 style={{ fontSize: '24px', fontWeight: '900', color: 'white', textShadow: '2px 2px 0px rgba(0,0,0,0.2)', margin: '0 0 8px 0' }}>🔗 Links & DM 💬</h1>
+            <p style={{ color: 'white', fontSize: '14px', fontWeight: '700', textShadow: '1px 1px 0px rgba(0,0,0,0.1)', margin: 0 }}>Connect • Collaborate • Create</p>
           </div>
-
-          {/* Profile Section */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             {profile.profilePic ? (
-              <img src={profile.profilePic} alt="Profile" style={{
-                width: '140px',
-                height: '140px',
-                borderRadius: '50%',
-                border: '6px solid white',
-                boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
-                margin: '0 auto 20px auto',
-                display: 'block',
-                objectFit: 'cover',
-              }} />
+              <img src={profile.profilePic} alt="Profile" style={{ width: '140px', height: '140px', borderRadius: '50%', border: '6px solid white', boxShadow: '0 15px 35px rgba(0,0,0,0.2)', margin: '0 auto 20px auto', display: 'block', objectFit: 'cover' }} />
             ) : (
-              <div style={{
-                width: '140px',
-                height: '140px',
-                borderRadius: '50%',
-                border: '6px solid white',
-                boxShadow: '0 15px 35px rgba(0,0,0,0.2)',
-                margin: '0 auto 20px auto',
-                background: 'rgba(255,255,255,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '56px',
-              }}>
+              <div style={{ width: '140px', height: '140px', borderRadius: '50%', border: '6px solid white', boxShadow: '0 15px 35px rgba(0,0,0,0.2)', margin: '0 auto 20px auto', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '56px' }}>
                 📸
               </div>
             )}
-            <h2 style={{
-              fontSize: '24px',
-              fontWeight: '900',
-              color: 'white',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
-              margin: '0 0 8px 0',
-            }}>
-              {profile.name}
-            </h2>
-            <p style={{
-              color: 'white',
-              fontWeight: '700',
-              fontSize: '16px',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              margin: '0 0 12px 0',
-            }}>
-              {profile.profession}
-            </p>
-            <p style={{
-              color: 'rgba(255,255,255,0.95)',
-              fontSize: '16px',
-              textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
-              fontWeight: '600',
-              margin: 0,
-            }}>
-              {profile.bio}
-            </p>
+            <h2 style={{ fontSize: '24px', fontWeight: '900', color: 'white', textShadow: '2px 2px 0px rgba(0,0,0,0.2)', margin: '0 0 8px 0' }}>{profile.name}</h2>
+            <p style={{ color: 'white', fontWeight: '700', fontSize: '16px', textShadow: '1px 1px 0px rgba(0,0,0,0.1)', margin: '0 0 12px 0' }}>{profile.profession}</p>
+            <p style={{ color: 'rgba(255,255,255,0.95)', fontSize: '16px', textShadow: '1px 1px 0px rgba(0,0,0,0.1)', fontWeight: '600', margin: 0 }}>{profile.bio}</p>
           </div>
 
-          {/* DM Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
             {dmButtons.bookMeeting.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.bookMeeting); setShowMessageForm(true); }}
-                style={{
-                  width: '100%',
-                  borderRadius: '20px',
-                  padding: '16px 20px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  background: buttonColors.bookMeeting.bg,
-                  color: buttonColors.bookMeeting.text,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: '20px' }}>📅</span>
+              <button onClick={() => { setCurrentMessageType(dmButtons.bookMeeting); setShowMessageForm(true); }} style={{ width: '100%', borderRadius: '20px', padding: '16px 20px', fontWeight: '700', fontSize: '15px', border: '3px solid rgba(255,255,255,0.4)', background: buttonColors.bookMeeting.bg, color: buttonColors.bookMeeting.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }} onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}>
+                <span>📅</span>
                 <span>{dmButtons.bookMeeting.label}</span>
               </button>
             )}
-
             {dmButtons.letsConnect.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.letsConnect); setShowMessageForm(true); }}
-                style={{
-                  width: '100%',
-                  borderRadius: '20px',
-                  padding: '16px 20px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  background: buttonColors.letsConnect.bg,
-                  color: buttonColors.letsConnect.text,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: '20px' }}>💬</span>
+              <button onClick={() => { setCurrentMessageType(dmButtons.letsConnect); setShowMessageForm(true); }} style={{ width: '100%', borderRadius: '20px', padding: '16px 20px', fontWeight: '700', fontSize: '15px', border: '3px solid rgba(255,255,255,0.4)', background: buttonColors.letsConnect.bg, color: buttonColors.letsConnect.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }} onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}>
+                <span>💬</span>
                 <span>{dmButtons.letsConnect.label}</span>
               </button>
             )}
-
             {dmButtons.collabRequest.enabled && (
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.collabRequest); setShowMessageForm(true); }}
-                style={{
-                  width: '100%',
-                  borderRadius: '20px',
-                  padding: '16px 20px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  background: buttonColors.collabRequest.bg,
-                  color: buttonColors.collabRequest.text,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: '20px' }}>🤝</span>
+              <button onClick={() => { setCurrentMessageType(dmButtons.collabRequest); setShowMessageForm(true); }} style={{ width: '100%', borderRadius: '20px', padding: '16px 20px', fontWeight: '700', fontSize: '15px', border: '3px solid rgba(255,255,255,0.4)', background: buttonColors.collabRequest.bg, color: buttonColors.collabRequest.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }} onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}>
+                <span>🤝</span>
                 <span>{dmButtons.collabRequest.label}</span>
               </button>
             )}
-
             {dmButtons.supportCause.enabled && charityLinks.length > 0 && (
-              <button
-                onClick={() => setCurrentView('charities-modal')}
-                style={{
-                  width: '100%',
-                  borderRadius: '20px',
-                  padding: '16px 20px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  background: buttonColors.supportCause.bg,
-                  color: buttonColors.supportCause.text,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: '20px' }}>❤️</span>
+              <button onClick={() => setCurrentView('charities-modal')} style={{ width: '100%', borderRadius: '20px', padding: '16px 20px', fontWeight: '700', fontSize: '15px', border: '3px solid rgba(255,255,255,0.4)', background: buttonColors.supportCause.bg, color: buttonColors.supportCause.text, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }} onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}>
+                <span>❤️</span>
                 <span>{dmButtons.supportCause.label}</span>
               </button>
             )}
           </div>
 
-          {/* Category Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '12px',
-            marginBottom: '30px',
-          }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '30px' }}>
             {socialHandles.length > 0 && (
-              <button
-                onClick={() => setCurrentView('handles-modal')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#FFB6C1',
-                  color: '#C71585',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>🌐</span>
+              <button onClick={() => setCurrentView('handles-modal')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#FFB6C1', color: '#C71585', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>🌐</span>
                 <span>@ Handles</span>
               </button>
             )}
-
             {emails.length > 0 && (
-              <button
-                onClick={() => setCurrentView('email-modal')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#B0E0E6',
-                  color: '#1E90FF',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>📧</span>
+              <button onClick={() => setCurrentView('email-modal')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#B0E0E6', color: '#1E90FF', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>📧</span>
                 <span>@ Email</span>
               </button>
             )}
-
             {phones.length > 0 && (
-              <button
-                onClick={() => setCurrentView('contact-modal')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#B4F8C8',
-                  color: '#228B22',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>📱</span>
+              <button onClick={() => setCurrentView('contact-modal')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#B4F8C8', color: '#228B22', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>📱</span>
                 <span>Contact</span>
               </button>
             )}
-
             {websites.length > 0 && (
-              <button
-                onClick={() => setCurrentView('website-modal')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#DDA0DD',
-                  color: '#663399',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>🌍</span>
+              <button onClick={() => setCurrentView('website-modal')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#DDA0DD', color: '#663399', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>🌍</span>
                 <span>Website</span>
               </button>
             )}
-
             {portfolio.enabled && portfolio.url && (
-              <button
-                onClick={() => window.open(formatUrl(portfolio.url), '_blank')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#B0E0E6',
-                  color: '#1E90FF',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>🎨</span>
+              <button onClick={() => window.open(formatUrl(portfolio.url), '_blank')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#B0E0E6', color: '#1E90FF', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>🎨</span>
                 <span>Portfolio</span>
               </button>
             )}
-
             {projects.enabled && projects.list.length > 0 && (
-              <button
-                onClick={() => setCurrentView('projects-modal')}
-                style={{
-                  borderRadius: '16px',
-                  padding: '16px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  background: '#FFDAB9',
-                  color: '#FF8C00',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                <span style={{ fontSize: '24px' }}>📁</span>
+              <button onClick={() => setCurrentView('projects-modal')} style={{ borderRadius: '16px', padding: '16px', fontWeight: '700', fontSize: '15px', background: '#FFDAB9', color: '#FF8C00', border: '3px solid rgba(255,255,255,0.4)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}>
+                <span>📁</span>
                 <span>Projects</span>
               </button>
             )}
           </div>
 
-          {/* Action Buttons */}
           <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <p style={{ color: 'white', fontWeight: '700', fontSize: '14px', margin: 0 }}>Ready to connect! 🚀</p>
-            <button
-              onClick={() => setCurrentView('landing')}
-              style={{
-                background: 'rgba(255,255,255,0.3)',
-                border: '3px solid white',
-                color: 'white',
-                padding: '10px 16px',
-                borderRadius: '16px',
-                fontWeight: '700',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-              }}
-              onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }}
-              onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
-            >
+            <button onClick={() => setCurrentView('landing')} style={{ background: 'rgba(255,255,255,0.3)', border: '3px solid white', color: 'white', padding: '10px 16px', borderRadius: '16px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }} onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}>
               ← Back
             </button>
             {user && (
               <>
-                <button
-                  onClick={() => setCurrentView('editor')}
-                  style={{
-                    background: 'rgba(255,255,255,0.3)',
-                    border: '3px solid white',
-                    color: 'white',
-                    padding: '10px 16px',
-                    borderRadius: '16px',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }}
-                  onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
-                >
+                <button onClick={() => setCurrentView('editor')} style={{ background: 'rgba(255,255,255,0.3)', border: '3px solid white', color: 'white', padding: '10px 16px', borderRadius: '16px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }} onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}>
                   ✏️ Editor
                 </button>
-                <button
-                  onClick={() => setCurrentView('inbox')}
-                  style={{
-                    background: 'rgba(255,255,255,0.3)',
-                    border: '3px solid white',
-                    color: 'white',
-                    padding: '10px 16px',
-                    borderRadius: '16px',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }}
-                  onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
-                >
+                <button onClick={() => setCurrentView('inbox')} style={{ background: 'rgba(255,255,255,0.3)', border: '3px solid white', color: 'white', padding: '10px 16px', borderRadius: '16px', fontWeight: '700', fontSize: '14px', cursor: 'pointer', transition: 'all 0.3s' }} onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.5)'; }} onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}>
                   📬 Inbox ({messages.length})
                 </button>
               </>
             )}
           </div>
 
-          {/* Modals */}
-          {currentView === 'handles-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌐 Handles</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
+          {/* Modals for preview — identical to public preview but using local state */}
+          {['handles-modal', 'email-modal', 'contact-modal', 'website-modal', 'projects-modal', 'charities-modal'].map(modal => (
+            <React.Fragment key={modal}>
+              {currentView === modal && (
+                <div style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.7)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '20px',
+                  zIndex: 1000,
+                }}>
+                  <div style={{
+                    background: 'white',
+                    borderRadius: '20px',
+                    padding: '30px',
+                    maxWidth: '400px',
+                    width: '100%',
+                    maxHeight: '80vh',
+                    overflowY: 'auto',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>
+                        {modal === 'handles-modal' ? '🌐 Handles' :
+                         modal === 'email-modal' ? '📧 Email' :
+                         modal === 'contact-modal' ? '📱 Contact' :
+                         modal === 'website-modal' ? '🌍 Website' :
+                         modal === 'projects-modal' ? '📁 Projects' :
+                         '❤️ Support a Cause'}
+                      </h3>
+                      <button onClick={() => setCurrentView('preview')} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        ×
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {modal === 'handles-modal' && socialHandles.map((h, i) => (
+                        <a key={i} href={`https://${h.platform.toLowerCase()}.com/${h.handle.replace('@', '')}`} target="_blank" rel="noopener noreferrer" style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{h.platform}</p>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#0066cc', margin: 0 }}>{h.handle}</p>
+                        </a>
+                      ))}
+                      {modal === 'email-modal' && emails.map((e, i) => (
+                        <a key={i} href={`mailto:${e}`} style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#1E90FF', margin: 0 }}>{e}</p>
+                        </a>
+                      ))}
+                      {modal === 'contact-modal' && phones.map((p, i) => (
+                        <a key={i} href={`tel:${p}`} style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#228B22', margin: 0 }}>{p}</p>
+                        </a>
+                      ))}
+                      {modal === 'website-modal' && websites.map((w, i) => (
+                        <a key={i} href={formatUrl(w)} target="_blank" rel="noopener noreferrer" style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#663399', margin: 0 }}>{w}</p>
+                        </a>
+                      ))}
+                      {modal === 'projects-modal' && projects.list.map((p, i) => (
+                        <a key={i} href={formatUrl(p.url)} target="_blank" rel="noopener noreferrer" style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#FF8C00', margin: 0 }}>{p.title}</p>
+                        </a>
+                      ))}
+                      {modal === 'charities-modal' && charityLinks.map((c, i) => (
+                        <a key={i} href={formatUrl(c.url)} target="_blank" rel="noopener noreferrer" style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', textDecoration: 'none', display: 'block', cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }} onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}>
+                          <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{c.name || 'Charity'}</p>
+                          <p style={{ fontSize: '14px', fontWeight: '700', color: '#EC4899', margin: 0 }}>{c.url}</p>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {socialHandles.map((handle, idx) => (
-                    <a
-                      key={idx}
-                      href={`https://${handle.platform.toLowerCase()}.com/${handle.handle.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{handle.platform}</p>
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#0066cc', margin: 0 }}>{handle.handle}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+              )}
+            </React.Fragment>
+          ))}
 
-          {currentView === 'email-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📧 Email</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {emails.map((email, idx) => (
-                    <a
-                      key={idx}
-                      href={`mailto:${email}`}
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#1E90FF', margin: 0 }}>{email}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'contact-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📱 Contact</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {phones.map((phone, idx) => (
-                    <a
-                      key={idx}
-                      href={`tel:${phone}`}
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#228B22', margin: 0 }}>{phone}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'website-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌍 Website</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {websites.map((website, idx) => (
-                    <a
-                      key={idx}
-                      href={formatUrl(website)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#663399', margin: 0 }}>{website}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'projects-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📁 Projects</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {projects.list.map((project, idx) => (
-                    <a
-                      key={idx}
-                      href={formatUrl(project.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#FF8C00', margin: 0 }}>{project.title}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {currentView === 'charities-modal' && (
-            <div style={{
-              position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
-              background: 'rgba(0,0,0,0.7)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              zIndex: '1000',
-              padding: '20px',
-            }}>
-              <div style={{
-                background: 'white',
-                borderRadius: '20px',
-                padding: '30px',
-                maxWidth: '400px',
-                width: '100%',
-                maxHeight: '80vh',
-                overflowY: 'auto',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>❤️ Support a Cause</h3>
-                  <button
-                    onClick={() => setCurrentView('preview')}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {charityLinks.map((charity, idx) => (
-                    <a
-                      key={idx}
-                      href={formatUrl(charity.url)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        background: '#F3F4F6',
-                        borderRadius: '12px',
-                        padding: '14px',
-                        textDecoration: 'none',
-                        display: 'block',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E5E7EB'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; }}
-                    >
-                      <p style={{ fontSize: '15px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{charity.name || 'Charity'}</p>
-                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#EC4899', margin: 0 }}>{charity.url}</p>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Message Form Modal */}
           {showMessageForm && (
             <div style={{
               position: 'fixed',
-              top: '0',
-              left: '0',
-              right: '0',
-              bottom: '0',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               background: 'rgba(0,0,0,0.7)',
               display: 'flex',
-              justifyContent: 'center',
               alignItems: 'center',
-              zIndex: '1000',
+              justifyContent: 'center',
               padding: '20px',
+              zIndex: 1000,
             }}>
               <div style={{
                 background: 'white',
@@ -3295,87 +2412,24 @@ const LinksAndDM = () => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                   <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>Send Message</h3>
-                  <button
-                    onClick={() => setShowMessageForm(false)}
-                    style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
+                  <button onClick={() => setShowMessageForm(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
                     ×
                   </button>
                 </div>
-
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Name</label>
-                    <input
-                      type="text"
-                      value={messageForm.name}
-                      onChange={(e) => setMessageForm({ ...messageForm, name: e.target.value })}
-                      placeholder="Your name"
-                      style={{
-                        width: '100%',
-                        border: '2px solid #ddd',
-                        borderRadius: '12px',
-                        padding: '10px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                    <input type="text" value={messageForm.name} onChange={(e) => setMessageForm({ ...messageForm, name: e.target.value })} placeholder="Your name" style={{ width: '100%', border: '2px solid #ddd', borderRadius: '12px', padding: '10px', fontSize: '14px', fontWeight: '600', boxSizing: 'border-box' }} />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Email or Contact</label>
-                    <input
-                      type="text"
-                      value={messageForm.contact}
-                      onChange={(e) => setMessageForm({ ...messageForm, contact: e.target.value })}
-                      placeholder="email@example.com or @handle"
-                      style={{
-                        width: '100%',
-                        border: '2px solid #ddd',
-                        borderRadius: '12px',
-                        padding: '10px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        boxSizing: 'border-box',
-                      }}
-                    />
+                    <input type="text" value={messageForm.contact} onChange={(e) => setMessageForm({ ...messageForm, contact: e.target.value })} placeholder="email@example.com or @handle" style={{ width: '100%', border: '2px solid #ddd', borderRadius: '12px', padding: '10px', fontSize: '14px', fontWeight: '600', boxSizing: 'border-box' }} />
                   </div>
-
                   <div>
                     <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '15px', color: '#333' }}>Message</label>
-                    <textarea
-                      value={messageForm.message}
-                      onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })}
-                      placeholder="Your message..."
-                      style={{
-                        width: '100%',
-                        border: '2px solid #ddd',
-                        borderRadius: '12px',
-                        padding: '10px',
-                        fontSize: '14px',
-                        fontWeight: '600',
-                        boxSizing: 'border-box',
-                        minHeight: '100px',
-                        resize: 'none',
-                      }}
-                    />
+                    <textarea value={messageForm.message} onChange={(e) => setMessageForm({ ...messageForm, message: e.target.value })} placeholder="Your message..." style={{ width: '100%', border: '2px solid #ddd', borderRadius: '12px', padding: '10px', fontSize: '14px', fontWeight: '600', boxSizing: 'border-box', minHeight: '100px', resize: 'none' }} />
                   </div>
-
-                  <button
-                    onClick={handleSendMessage}
-                    style={{
-                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
-                      color: 'white',
-                      padding: '12px',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontWeight: '900',
-                      cursor: 'pointer',
-                      marginTop: '10px',
-                      fontSize: '14px',
-                    }}
-                  >
+                  <button onClick={handleSendMessage} style={{ background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)', color: 'white', padding: '12px', border: 'none', borderRadius: '12px', fontWeight: '900', cursor: 'pointer', marginTop: '10px', fontSize: '14px' }}>
                     Send Message ✨
                   </button>
                 </div>
@@ -3387,46 +2441,19 @@ const LinksAndDM = () => {
     );
   }
 
-  // INBOX PAGE
+  // INBOX
   if (currentView === 'inbox' && user) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f591ba 0%, #f2bc7c 50%, #7fda7f 100%)',
-        padding: '20px',
-        fontFamily: "'Poppins', sans-serif",
-      }}>
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f591ba 0%, #f2bc7c 50%, #7fda7f 100%)', padding: '20px', fontFamily: "'Poppins', sans-serif' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '12px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setCurrentView('editor')}
-              style={{
-                background: 'rgba(255,255,255,0.3)',
-                border: '3px solid white',
-                color: 'white',
-                padding: '10px 20px',
-                borderRadius: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '14px',
-              }}
-            >
+            <button onClick={() => setCurrentView('editor')} style={{ background: 'rgba(255,255,255,0.3)', border: '3px solid white', color: 'white', padding: '10px 20px', borderRadius: '12px', fontWeight: '700', cursor: 'pointer', fontSize: '14px' }}>
               ← Back
             </button>
             <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '900', margin: 0 }}>📬 Messages</h1>
             <div style={{ width: '100px' }} />
           </div>
-
-          {/* Filter Buttons */}
-          <div style={{
-            background: 'rgba(255,255,255,0.95)',
-            borderRadius: '20px',
-            padding: '15px',
-            marginBottom: '20px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-          }}>
+          <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '15px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             {[
               { id: 'all', emoji: '💬', label: 'All' },
               { id: 'priority', emoji: '⭐', label: 'Priority' },
@@ -3435,35 +2462,13 @@ const LinksAndDM = () => {
               { id: 'collab', emoji: '🤝', label: 'Collab' },
               { id: 'fans', emoji: '🌸', label: 'Fans' },
             ].map((filter) => (
-              <button
-                key={filter.id}
-                onClick={() => setInboxFilter(filter.id)}
-                style={{
-                  padding: '8px 15px',
-                  background: inboxFilter === filter.id ? '#A855F7' : '#f0f0f0',
-                  color: inboxFilter === filter.id ? 'white' : '#333',
-                  border: 'none',
-                  borderRadius: '20px',
-                  cursor: 'pointer',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  transition: 'all 0.2s',
-                }}
-              >
+              <button key={filter.id} onClick={() => setInboxFilter(filter.id)} style={{ padding: '8px 15px', background: inboxFilter === filter.id ? '#A855F7' : '#f0f0f0', color: inboxFilter === filter.id ? 'white' : '#333', border: 'none', borderRadius: '20px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', transition: 'all 0.2s' }}>
                 {filter.emoji} {filter.label}
               </button>
             ))}
           </div>
-
-          {/* Messages */}
           {getFilteredMessages().length === 0 ? (
-            <div style={{
-              background: 'rgba(255,255,255,0.95)',
-              borderRadius: '20px',
-              padding: '60px 40px',
-              textAlign: 'center',
-              color: '#999',
-            }}>
+            <div style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '20px', padding: '60px 40px', textAlign: 'center', color: '#999' }}>
               <div style={{ fontSize: '56px', marginBottom: '15px' }}>📬</div>
               <div style={{ fontSize: '18px', fontWeight: '900', marginBottom: '8px', color: '#333' }}>No messages yet</div>
               <div style={{ fontSize: '16px' }}>Messages will appear here when you share your profile!</div>
@@ -3471,18 +2476,7 @@ const LinksAndDM = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {getFilteredMessages().map((msg) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    background: 'rgba(255,255,255,0.95)',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    borderLeft: `5px solid ${msg.isPriority ? '#FBBF24' : '#9CA3AF'}`,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                  }}
-                >
+                <div key={msg.id} style={{ background: 'rgba(255,255,255,0.95)', borderRadius: '16px', padding: '16px', borderLeft: `5px solid ${msg.isPriority ? '#FBBF24' : '#9CA3AF'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
                       <div>
@@ -3498,21 +2492,7 @@ const LinksAndDM = () => {
                       {msg.timestamp?.toDate?.()?.toLocaleString?.() || 'Just now'}
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteMessage(msg.id)}
-                    style={{
-                      background: '#ff4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      fontWeight: '700',
-                      fontSize: '15px',
-                      marginLeft: '12px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
+                  <button onClick={() => deleteMessage(msg.id)} style={{ background: '#ff4444', color: 'white', border: 'none', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer', fontWeight: '700', fontSize: '15px', marginLeft: '12px', whiteSpace: 'nowrap' }}>
                     Delete
                   </button>
                 </div>
@@ -3524,7 +2504,6 @@ const LinksAndDM = () => {
     );
   }
 
-  // Error/Fallback Page
   return (
     <div style={{
       minHeight: '100vh',
@@ -3547,11 +2526,7 @@ const LinksAndDM = () => {
         <h2 style={{ fontSize: '24px', color: '#333', marginBottom: '16px', fontWeight: '900' }}>Page Not Found</h2>
         <p style={{ color: '#666', marginBottom: '30px', fontSize: '16px' }}>The page you're looking for doesn't exist or there was an error.</p>
         <button
-          onClick={() => {
-            if (typeof window !== 'undefined') {
-              window.location.href = '/';
-            }
-          }}
+          onClick={() => { window.location.href = '/'; }}
           style={{
             background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
             color: 'white',
