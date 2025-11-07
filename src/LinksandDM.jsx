@@ -97,9 +97,9 @@ const LinksAndDM = () => {
 
   // Profile States
   const [profile, setProfile] = useState({
-    name: 'Your Name Here',
-    profession: 'Your Profession',
-    bio: 'Add your bio here! 🌟',
+    name: 'Your Name',
+    profession: 'Your Job',
+    bio: 'Your bio',
     username: '',
     profilePic: null,
     selectedTheme: 0,
@@ -140,12 +140,18 @@ const LinksAndDM = () => {
   // Add loading state for save operations
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
 
   // UI States
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorPickerType, setColorPickerType] = useState(null);
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
+  
+  // Modal States for showing links in modals
+  const [modalOpen, setModalOpen] = useState(null);
+  const [modalContent, setModalContent] = useState(null);
+  
+  // Message sending state
+  const [sendingMessage, setSendingMessage] = useState(false);
   
   // Public profile route state
   const [publicUsername, setPublicUsername] = useState(null);
@@ -163,7 +169,7 @@ const LinksAndDM = () => {
           setPublicUsername(username);
           setPublicProfileLoading(true);
           try {
-            // Query for profile by username - using correct field path
+            // Query for profile by username
             const q = query(
               collection(db, 'users'),
               where('username', '==', username)
@@ -174,7 +180,6 @@ const LinksAndDM = () => {
               setPublicProfile(profileData);
               setCurrentView('public-preview');
             } else {
-              console.log('Profile not found for username:', username);
               setCurrentView('not-found');
             }
           } catch (error) {
@@ -241,13 +246,8 @@ const LinksAndDM = () => {
     }
   };
 
-  // Load messages - FIXED: Only show inbox for authenticated users, proper Timestamp handling
+  // Load messages
   const loadMessages = async (uid) => {
-    if (!uid) {
-      console.log('No user ID provided for loading messages');
-      setMessages([]); // Clear messages if no user
-      return;
-    }
     try {
       const q = query(
         collection(db, 'messages'),
@@ -257,13 +257,11 @@ const LinksAndDM = () => {
       const querySnapshot = await getDocs(q);
       const msgs = querySnapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp
+        ...doc.data()
       }));
       setMessages(msgs);
     } catch (error) {
       console.error('Error loading messages:', error);
-      setMessages([]);
     }
   };
 
@@ -289,8 +287,8 @@ const LinksAndDM = () => {
         priorityContacts,
         username: profile.username.trim(),
         email: user.email,
-        lastUpdated: Timestamp.now(),
-      }, { merge: true });
+        lastUpdated: new Date(),
+      });
       alert('✅ Profile saved successfully!');
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -358,10 +356,11 @@ const LinksAndDM = () => {
     }
     try {
       if (typeof window !== 'undefined' && window.location) {
-        const link = `${window.location.origin}/user/${encodeURIComponent(profile.username)}`;
+        const link = `${window.location.origin}/user/${profile.username}`;
         setShareLink(link);
       } else {
-        const link = `https://linksanddms.netlify.app/user/${encodeURIComponent(profile.username)}`;
+        // Fallback for SSR or special environments
+        const link = `https://linksanddms.netlify.app/user/${profile.username}`;
         setShareLink(link);
       }
     } catch (error) {
@@ -394,31 +393,29 @@ const LinksAndDM = () => {
     }
   };
 
-  // Send message - FIXED: Prevent duplicate notifications, proper Firebase storage
+  // Send message
   const handleSendMessage = async () => {
     if (!messageForm.name || !messageForm.contact || !messageForm.message) {
       alert('Please fill all fields');
       return;
     }
     
-    if (sendingMessage) return; // Prevent duplicate submissions
     setSendingMessage(true);
-    
     try {
-      let recipientId = null;
-      
-      if (user?.uid) {
-        recipientId = user.uid;
-      } else if (publicUsername && publicProfile) {
-        // Query to get the recipient ID from public profile
+      // If on public preview, find the recipient by username
+      let recipientId = user?.uid;
+      if (!recipientId && publicUsername) {
         const q = query(
           collection(db, 'users'),
           where('username', '==', publicUsername)
         );
         const querySnapshot = await getDocs(q);
-        if (querySnapshot.docs.length > 0) {
-          recipientId = querySnapshot.docs[0].id;
+        if (querySnapshot.docs.length === 0) {
+          alert('Recipient not found');
+          setSendingMessage(false);
+          return;
         }
+        recipientId = querySnapshot.docs[0].id;
       }
 
       if (!recipientId) {
@@ -431,12 +428,13 @@ const LinksAndDM = () => {
       const recipientData = (await getDoc(doc(db, 'users', recipientId))).data();
       const isPriority = recipientData?.priorityContacts?.some(c => c === messageForm.contact) || false;
 
-      // Get message type label with emoji
-      let messageTypeLabel = currentMessageType?.label || 'Message';
-      if (currentMessageType?.icon) {
+      // Get message type label
+      let messageTypeLabel = currentMessageType?.label || currentMessageType || 'Message';
+      if (currentMessageType?.icon && currentMessageType?.label) {
         messageTypeLabel = `${currentMessageType.icon} ${currentMessageType.label}`;
       }
 
+      // Store message in Firebase with proper Timestamp
       await addDoc(collection(db, 'messages'), {
         recipientId,
         senderName: messageForm.name,
@@ -446,15 +444,12 @@ const LinksAndDM = () => {
         timestamp: Timestamp.now(),
         isPriority: isPriority,
       });
-
+      
       setMessageForm({ name: '', contact: '', message: '' });
       setShowMessageForm(false);
-      setCurrentMessageType(null);
       alert('✅ Message sent successfully!');
-      
-      // Reload messages only if user is logged in (prevents double reload)
-      if (user?.uid) {
-        await loadMessages(user.uid);
+      if (user) {
+        loadMessages(user.uid);
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -484,11 +479,15 @@ const LinksAndDM = () => {
 
   // Delete message
   const deleteMessage = async (msgId) => {
+    if (!window.confirm('Are you sure you want to delete this message?')) {
+      return;
+    }
     try {
       await deleteDoc(doc(db, 'messages', msgId));
       if (user) {
         loadMessages(user.uid);
       }
+      alert('✅ Message deleted successfully');
     } catch (error) {
       console.error('Error deleting message:', error);
       alert('Error deleting message');
@@ -1034,19 +1033,21 @@ const LinksAndDM = () => {
 
                   <button
                     onClick={handleSendMessage}
+                    disabled={sendingMessage}
                     style={{
-                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                      background: sendingMessage ? '#ccc' : 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
                       color: 'white',
                       padding: '12px',
                       border: 'none',
                       borderRadius: '12px',
                       fontWeight: '900',
-                      cursor: 'pointer',
+                      cursor: sendingMessage ? 'not-allowed' : 'pointer',
                       marginTop: '10px',
                       fontSize: '14px',
+                      opacity: sendingMessage ? 0.6 : 1,
                     }}
                   >
-                    Send Message ✨
+                    {sendingMessage ? '⏳ Sending...' : 'Send Message ✨'}
                   </button>
                 </div>
               </div>
@@ -1157,7 +1158,7 @@ const LinksAndDM = () => {
               onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)'; }}
               onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
             >
-              🚀 Let's Do It!
+              {user ? '✏️ Edit' : "Let's Do It!"}
             </button>
           </div>
 
@@ -1770,8 +1771,6 @@ const LinksAndDM = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  flexWrap: 'nowrap',
-                  minWidth: 0,
                 }}>
                   <input
                     type="checkbox"
@@ -1780,9 +1779,9 @@ const LinksAndDM = () => {
                       ...prev,
                       [key]: { ...prev[key], enabled: !prev[key].enabled }
                     }))}
-                    style={{ width: '20px', height: '20px', cursor: 'pointer', flexShrink: 0 }}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
                   />
-                  <span style={{ fontSize: '20px', flexShrink: 0 }}>{btn.icon}</span>
+                  <span style={{ fontSize: '20px' }}>{btn.icon}</span>
                   <input
                     type="text"
                     value={btn.label}
@@ -1796,8 +1795,7 @@ const LinksAndDM = () => {
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
-                      minWidth: 0,
+                      fontSize: '14px',
                     }}
                   />
                   <div style={{
@@ -1807,8 +1805,6 @@ const LinksAndDM = () => {
                     borderRadius: '8px',
                     fontWeight: '700',
                     fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
                   }}>
                     Preview
                   </div>
@@ -3389,19 +3385,21 @@ const LinksAndDM = () => {
 
                   <button
                     onClick={handleSendMessage}
+                    disabled={sendingMessage}
                     style={{
-                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                      background: sendingMessage ? '#ccc' : 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
                       color: 'white',
                       padding: '12px',
                       border: 'none',
                       borderRadius: '12px',
                       fontWeight: '900',
-                      cursor: 'pointer',
+                      cursor: sendingMessage ? 'not-allowed' : 'pointer',
                       marginTop: '10px',
                       fontSize: '14px',
+                      opacity: sendingMessage ? 0.6 : 1,
                     }}
                   >
-                    Send Message ✨
+                    {sendingMessage ? '⏳ Sending...' : 'Send Message ✨'}
                   </button>
                 </div>
               </div>
@@ -3412,7 +3410,7 @@ const LinksAndDM = () => {
     );
   }
 
-  // INBOX PAGE - FIXED: Only accessible by authenticated users
+  // INBOX PAGE
   if (currentView === 'inbox' && user) {
     return (
       <div style={{
