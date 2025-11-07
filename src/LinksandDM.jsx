@@ -141,6 +141,15 @@ const LinksAndDM = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
+  // Modal States
+  const [showCharityModal, setShowCharityModal] = useState(false);
+  const [showHandlesModal, setShowHandlesModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [showWebsiteModal, setShowWebsiteModal] = useState(false);
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+
   // UI States
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [colorPickerType, setColorPickerType] = useState(null);
@@ -162,15 +171,15 @@ const LinksAndDM = () => {
           setPublicUsername(username);
           setPublicProfileLoading(true);
           try {
-            // Query for profile by username
+            // Query for profile by username (check both nested and top-level)
             const q = query(
               collection(db, 'users'),
               where('username', '==', username)
             );
             const querySnapshot = await getDocs(q);
             if (querySnapshot.docs.length > 0) {
-              const profileData = querySnapshot.docs[0].data();
-              setPublicProfile(profileData);
+              const userData = querySnapshot.docs[0].data();
+              setPublicProfile(userData);
               setCurrentView('public-preview');
             } else {
               setCurrentView('not-found');
@@ -341,23 +350,42 @@ const LinksAndDM = () => {
   };
 
   // Generate share link
-  const generateShareLink = () => {
+  const generateShareLink = async () => {
     if (!profile.username.trim()) {
       alert('⚠️ Please set a username first!');
       return;
     }
+    
+    // Save profile first before generating link
     try {
+      await setDoc(doc(db, 'users', user.uid), {
+        profile,
+        dmButtons,
+        buttonColors,
+        charityLinks,
+        emails,
+        phones,
+        websites,
+        portfolio,
+        projects,
+        priorityContacts,
+        userId: user.uid,
+        email: user.email,
+      });
+      
+      // Now generate the link
       if (typeof window !== 'undefined' && window.location) {
         const link = `${window.location.origin}/user/${profile.username}`;
         setShareLink(link);
       } else {
-        // Fallback for SSR or special environments
         const link = `https://linksanddms.netlify.app/user/${profile.username}`;
         setShareLink(link);
       }
+      
+      showNotify('✅ Profile saved! Link generated.');
     } catch (error) {
-      console.error('Error generating share link:', error);
-      alert('❌ Error generating share link');
+      console.error('Error saving and generating link:', error);
+      showNotify('❌ Error saving profile');
     }
   };
 
@@ -677,10 +705,7 @@ const LinksAndDM = () => {
             }}>
               {publicProfile.socialHandles?.length > 0 && (
                 <button
-                  onClick={() => {
-                    const handle = publicProfile.socialHandles[0];
-                    window.open(`https://instagram.com/${handle}`, '_blank');
-                  }}
+                  onClick={() => setShowHandlesModal(true)}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -713,7 +738,7 @@ const LinksAndDM = () => {
 
               {publicProfile.emails?.length > 0 && (
                 <button
-                  onClick={() => window.location.href = `mailto:${publicProfile.emails[0]}`}
+                  onClick={() => setShowEmailModal(true)}
                   style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '16px',
@@ -911,8 +936,190 @@ const LinksAndDM = () => {
             </div>
           )}
 
-          {/* Message Form Modal */}
-          {showMessageForm && currentMessageType && (
+          {/* Social Handles Modal */}
+          {showHandlesModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌐 Social Handles</h3>
+                  <button onClick={() => setShowHandlesModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.socialHandles?.map((handle, idx) => (
+                    <a key={idx} href={`https://${handle.platform.toLowerCase()}.com/${handle.handle.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {handle.platform}: {handle.handle}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Email Modal */}
+          {showEmailModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📧 Email</h3>
+                  <button onClick={() => setShowEmailModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.emails?.map((email, idx) => (
+                    <a key={idx} href={`mailto:${email}`}
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {email}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Phone Modal */}
+          {showPhoneModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>☎️ Phone</h3>
+                  <button onClick={() => setShowPhoneModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.phones?.map((phone, idx) => (
+                    <a key={idx} href={`tel:${phone}`}
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {phone}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Website Modal */}
+          {showWebsiteModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🌍 Website</h3>
+                  <button onClick={() => setShowWebsiteModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.websites?.map((website, idx) => (
+                    <a key={idx} href={website} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer', wordBreak: 'break-all'
+                      }}
+                    >
+                      {website}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Portfolio Modal */}
+          {showPortfolioModal && publicProfile.portfolio?.enabled && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>🎨 Portfolio</h3>
+                  <button onClick={() => setShowPortfolioModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <a href={formatUrl(publicProfile.portfolio.url)} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    display: 'block', background: '#A855F7', color: 'white', padding: '12px', borderRadius: '8px', textDecoration: 'none', fontWeight: '700', textAlign: 'center', cursor: 'pointer'
+                  }}
+                >
+                  🔗 View Portfolio
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* Projects Modal */}
+          {showProjectsModal && publicProfile.projects?.enabled && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>📁 Projects</h3>
+                  <button onClick={() => setShowProjectsModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.projects?.list?.map((project, idx) => (
+                    <a key={idx} href={formatUrl(project.url)} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {project.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Charity Modal */}
+          {showCharityModal && publicProfile.charityLinks?.length > 0 && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 1000, padding: '20px',
+            }}>
+              <div style={{ background: 'white', borderRadius: '20px', padding: '30px', maxWidth: '400px', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>❤️ Support a Cause</h3>
+                  <button onClick={() => setShowCharityModal(false)} style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {publicProfile.charityLinks?.map((charity, idx) => (
+                    <a key={idx} href={charity.url} target="_blank" rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6', padding: '12px', borderRadius: '8px', textDecoration: 'none', color: '#1E90FF', fontWeight: '700', cursor: 'pointer'
+                      }}
+                    >
+                      {charity.name}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
             <div style={{
               position: 'fixed',
               top: 0,
@@ -1123,20 +1330,21 @@ const LinksAndDM = () => {
             <button
               onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
               style={{
-                background: 'white',
-                color: '#8B5CF6',
-                padding: '14px 32px',
+                background: 'linear-gradient(135deg, #A855F7 0%, #8B5CF6 100%)',
+                color: 'white',
+                padding: '18px 48px',
                 borderRadius: '50px',
-                border: '3px solid #E9D5FF',
+                border: 'none',
                 fontWeight: '900',
-                fontSize: '16px',
+                fontSize: '22px',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
+                boxShadow: '0 10px 40px rgba(168, 85, 247, 0.4)',
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.08)'; e.target.style.boxShadow = '0 15px 50px rgba(168, 85, 247, 0.6)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 40px rgba(168, 85, 247, 0.4)'; }}
             >
-              Let's Do It! 🚀
+              Let's Do It!
             </button>
           </div>
 
@@ -1222,11 +1430,11 @@ const LinksAndDM = () => {
               Get Started Now 🚀
             </button>
             <button
-              onClick={() => setCurrentView('preview')}
+              onClick={() => setCurrentView('demo-preview')}
               style={{
                 background: 'white',
                 color: '#A855F7',
-                padding: '18px 48px',
+                padding: '14px 32px',
                 borderRadius: '50px',
                 border: '3px solid white',
                 fontWeight: '900',
@@ -1388,36 +1596,164 @@ const LinksAndDM = () => {
         fontFamily: "'Poppins', sans-serif",
       }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '12px', flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: '32px', color: 'white', fontWeight: '900', margin: 0 }}>✏️ Edit Profile</h1>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Professional Header */}
+          <div style={{
+            background: 'rgba(255,255,255,0.15)',
+            borderRadius: '20px',
+            padding: '24px',
+            marginBottom: '30px',
+            backdropFilter: 'blur(10px)',
+            borderLeft: '5px solid rgba(168, 85, 247, 0.8)',
+          }}>
+            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '800', margin: '0 0 16px 0' }}>Profile Settings</h1>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button
-                onClick={() => saveProfile()}
+                onClick={() => setCurrentView('preview')}
                 style={{
-                  background: '#10B981',
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   color: 'white',
-                  padding: '10px 20px',
+                  padding: '12px 24px',
                   borderRadius: '12px',
                   border: 'none',
                   fontWeight: '700',
                   cursor: 'pointer',
                   fontSize: '14px',
+                  transition: 'all 0.2s',
                 }}
+                onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; }}
               >
-                💾 Save
+                👁️ Preview
               </button>
               <button
-                onClick={() => { saveProfile(); setCurrentView('preview'); }}
+                onClick={() => setCurrentView('inbox')}
                 style={{
-                  background: '#3B82F6',
+                  background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
                   color: 'white',
-                  padding: '10px 20px',
+                  padding: '12px 24px',
                   borderRadius: '12px',
                   border: 'none',
                   fontWeight: '700',
                   cursor: 'pointer',
                   fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; }}
+              >
+                📬 Inbox
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  padding: '12px 24px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
+                onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.2)'; }}
+              >
+                🚪 Logout
+              </button>
+            </div>
+          </div>
+
+          {/* Save & Generate Link Buttons */}
+          <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', flexDirection: 'column' }}>
+            <button
+              onClick={saveProfile}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '12px',
+                border: 'none',
+                fontWeight: '900',
+                cursor: 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.3s',
+                boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)',
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 32px rgba(16, 185, 129, 0.4)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 24px rgba(16, 185, 129, 0.3)'; }}
+              disabled={isSaving}
+            >
+              {isSaving ? '⏳ Saving...' : '⬇️ Save All Changes'}
+            </button>
+            <button
+              onClick={async () => {
+                await saveProfile();
+                generateShareLink();
+              }}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                color: 'white',
+                padding: '16px',
+                borderRadius: '12px',
+                border: 'none',
+                fontWeight: '900',
+                cursor: 'pointer',
+                fontSize: '16px',
+                transition: 'all 0.3s',
+                boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)',
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 12px 32px rgba(59, 130, 246, 0.4)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.3)'; }}
+            >
+              🔗 Generate Shareable Link
+            </button>
+            {shareLink && (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '2px solid #3B82F6',
+                borderRadius: '12px',
+                padding: '12px',
+                textAlign: 'center',
+              }}>
+                <p style={{ margin: '0 0 8px 0', fontSize: '12px', color: '#666', fontWeight: '700' }}>✅ Link Generated!</p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={shareLink}
+                    readOnly
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <button
+                    onClick={copyToClipboard}
+                    style={{
+                      background: copySuccess ? '#10B981' : '#3B82F6',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {copySuccess ? '✅ Copied!' : '📋 Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
                 }}
               >
                 👁️ Preview
@@ -1686,54 +2022,62 @@ const LinksAndDM = () => {
                 borderRadius: '16px',
                 padding: '20px',
                 marginBottom: '20px',
-                maxHeight: '300px',
+                maxHeight: '400px',
                 overflowY: 'auto',
               }}>
                 {Object.entries(dmButtons).map(([key, btn]) => (
                   <div key={key} style={{
                     background: '#F3F4F6',
-                    padding: '12px',
+                    padding: '16px',
                     borderRadius: '12px',
                     marginBottom: '12px',
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'center',
                   }}>
-                    <div style={{
-                      background: buttonColors[key].bg,
-                      color: buttonColors[key].text,
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '700',
-                    }}>
-                      {btn.icon}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <div style={{
+                        background: buttonColors[key].bg,
+                        color: buttonColors[key].text,
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        fontSize: '20px',
+                      }}>
+                        {btn.icon}
+                      </div>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#333', flex: 1 }}>{btn.label}</p>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#333' }}>{btn.label}</p>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="color"
-                        value={buttonColors[key].bg}
-                        onChange={(e) => setButtonColors(prev => ({
-                          ...prev,
-                          [key]: { ...prev[key], bg: e.target.value }
-                        }))}
-                        style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-                      />
-                      <input
-                        type="color"
-                        value={buttonColors[key].text}
-                        onChange={(e) => setButtonColors(prev => ({
-                          ...prev,
-                          [key]: { ...prev[key], text: e.target.value }
-                        }))}
-                        style={{ width: '40px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
-                      />
+                    
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      {/* Background Color */}
+                      <div style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#666', minWidth: '70px' }}>🎨 BG:</label>
+                        <input
+                          type="color"
+                          value={buttonColors[key].bg}
+                          onChange={(e) => setButtonColors(prev => ({
+                            ...prev,
+                            [key]: { ...prev[key], bg: e.target.value }
+                          }))}
+                          style={{ width: '50px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                        />
+                      </div>
+                      
+                      {/* Font Color */}
+                      <div style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '700', color: '#666', minWidth: '70px' }}>📝 Font:</label>
+                        <input
+                          type="color"
+                          value={buttonColors[key].text}
+                          onChange={(e) => setButtonColors(prev => ({
+                            ...prev,
+                            [key]: { ...prev[key], text: e.target.value }
+                          }))}
+                          style={{ width: '50px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1776,16 +2120,6 @@ const LinksAndDM = () => {
                       fontSize: '14px',
                     }}
                   />
-                  <div style={{
-                    background: buttonColors[key].bg,
-                    color: buttonColors[key].text,
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '12px',
-                  }}>
-                    Preview
-                  </div>
                 </div>
               ))}
             </div>
@@ -1795,14 +2129,15 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #EC4899 0%, #F87171 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>❤️ Charity / Cause Links</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 16px 0' }}>❤️ Charity / Cause Links</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {charityLinks.map((charity, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="text"
                     value={charity.name}
@@ -1814,11 +2149,11 @@ const LinksAndDM = () => {
                     placeholder="Cause name"
                     style={{
                       flex: 0.3,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1833,25 +2168,25 @@ const LinksAndDM = () => {
                     placeholder="https://..."
                     style={{
                       flex: 0.7,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setCharityLinks(charityLinks.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -1881,14 +2216,15 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>🌐 Social Handles</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 16px 0' }}>🌐 Social Handles</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {socialHandles.map((handle, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="text"
                     value={handle.platform}
@@ -1900,11 +2236,11 @@ const LinksAndDM = () => {
                     placeholder="Instagram"
                     style={{
                       flex: 0.4,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
@@ -1919,25 +2255,25 @@ const LinksAndDM = () => {
                     placeholder="@yourhandle"
                     style={{
                       flex: 0.6,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setSocialHandles(socialHandles.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -1967,14 +2303,15 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #3B82F6 0%, #06B6D4 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>📧 Email Addresses</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 16px 0' }}>📧 Email Addresses</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {emails.map((email, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="email"
                     value={email}
@@ -1986,25 +2323,25 @@ const LinksAndDM = () => {
                     placeholder="email@example.com"
                     style={{
                       flex: 1,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setEmails(emails.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -2034,14 +2371,15 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>📱 Contact Numbers</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 16px 0' }}>📱 Contact Numbers</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {phones.map((phone, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="tel"
                     value={phone}
@@ -2053,25 +2391,25 @@ const LinksAndDM = () => {
                     placeholder="+1 (555) 123-4567"
                     style={{
                       flex: 1,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setPhones(phones.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -2101,14 +2439,15 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>🌍 Website / Store</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 16px 0' }}>🌍 Website / Store</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {websites.map((website, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="url"
                     value={website}
@@ -2120,25 +2459,25 @@ const LinksAndDM = () => {
                     placeholder="https://yourwebsite.com"
                     style={{
                       flex: 1,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setWebsites(websites.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -2400,45 +2739,46 @@ const LinksAndDM = () => {
           <div style={{
             background: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
             borderRadius: '20px',
-            padding: '30px',
+            padding: '24px',
             marginBottom: '20px',
             boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+            overflow: 'hidden',
           }}>
-            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 20px 0' }}>⭐ Friends & Family (Priority)</h2>
-            <p style={{ color: 'white', fontWeight: '600', marginBottom: '12px', fontSize: '14px' }}>Messages from these contacts will appear with a ⭐</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 12px 0' }}>⭐ Friends & Family (Priority)</h2>
+            <p style={{ color: 'white', fontWeight: '600', marginBottom: '16px', fontSize: '13px' }}>Add @handles of friends/family. Messages from them appear with ⭐ in inbox</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {priorityContacts.map((contact, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px' }}>
+                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     type="text"
-                    value={contact}
+                    value={typeof contact === 'string' ? contact : (contact.handle || '')}
                     onChange={(e) => {
                       const newContacts = [...priorityContacts];
                       newContacts[idx] = e.target.value;
                       setPriorityContacts(newContacts);
                     }}
-                    placeholder="email or phone"
+                    placeholder="@instagram_handle"
                     style={{
                       flex: 1,
-                      border: '1px solid #fff',
+                      border: 'none',
                       borderRadius: '8px',
                       padding: '8px',
                       fontWeight: '600',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       boxSizing: 'border-box',
                     }}
                   />
                   <button
                     onClick={() => setPriorityContacts(priorityContacts.filter((_, i) => i !== idx))}
                     style={{
-                      background: 'rgba(255,255,255,0.3)',
+                      background: 'rgba(255,255,255,0.4)',
                       color: 'white',
                       padding: '8px 12px',
                       border: 'none',
                       borderRadius: '8px',
                       fontWeight: '700',
                       cursor: 'pointer',
-                      fontSize: '12px',
+                      fontSize: '14px',
                     }}
                   >
                     ✕
@@ -2447,7 +2787,7 @@ const LinksAndDM = () => {
               ))}
             </div>
             <button
-              onClick={() => setPriorityContacts([...priorityContacts, { handle: '' }])}
+              onClick={() => setPriorityContacts([...priorityContacts, ''])}
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.3)',
@@ -3386,8 +3726,292 @@ const LinksAndDM = () => {
     );
   }
 
-  // INBOX PAGE
-  if (currentView === 'inbox' && user) {
+  // DEMO PREVIEW PAGE
+  if (currentView === 'demo-preview') {
+    const [demoModal, setDemoModal] = useState(null);
+    
+    const demoProfile = {
+      profile: {
+        name: 'Ash',
+        profession: 'Entrepreneur',
+        bio: 'Owner of Ashworldco | Connect • Collaborate • Create',
+        selectedTheme: 0,
+        customBgColor: null,
+      },
+      dmButtons: {
+        bookMeeting: { enabled: true, label: 'Book a Meeting', icon: '📅' },
+        letsConnect: { enabled: true, label: "Let's Connect", icon: '💬' },
+        collabRequest: { enabled: true, label: 'Collab Request', icon: '🤝' },
+        supportCause: { enabled: true, label: 'Support a Cause', icon: '❤️' },
+      },
+      buttonColors: {
+        bookMeeting: { bg: '#B0E0E6', text: '#0066cc' },
+        letsConnect: { bg: '#DDA0DD', text: '#8B008B' },
+        collabRequest: { bg: '#AFEEEE', text: '#008B8B' },
+        supportCause: { bg: '#FFB6D9', text: '#C71585' },
+      },
+      emails: ['ashworldco@gmail.com'],
+      phones: ['12344556789'],
+      websites: ['https://ashworldco.com'],
+      socialHandles: [
+        { platform: 'Instagram', handle: '@ashworldco' },
+      ],
+    };
+
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #87CEEB 0%, #E0FFFF 100%)',
+        padding: '20px',
+        fontFamily: "'Poppins', sans-serif",
+      }}>
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <button
+            onClick={() => setCurrentView('landing')}
+            style={{
+              background: 'rgba(255,255,255,0.3)',
+              border: '3px solid white',
+              color: 'white',
+              padding: '10px 20px',
+              borderRadius: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '14px',
+              marginBottom: '20px',
+            }}
+          >
+            ← Back to Home
+          </button>
+
+          <div style={{
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '24px',
+            padding: '40px 30px',
+            textAlign: 'center',
+            backdropFilter: 'blur(10px)',
+          }}>
+            <div style={{ fontSize: '72px', marginBottom: '16px' }}>👤</div>
+            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '900', margin: '0 0 8px 0', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+              {demoProfile.profile.name}
+            </h1>
+            <p style={{ fontSize: '16px', color: 'white', fontWeight: '700', margin: '0 0 12px 0', opacity: 0.95 }}>
+              {demoProfile.profile.profession}
+            </p>
+            <p style={{ fontSize: '14px', color: 'white', margin: '0 0 24px 0', lineHeight: '1.6', opacity: 0.9 }}>
+              {demoProfile.profile.bio}
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              {Object.entries(demoProfile.dmButtons).map(([key, button]) => {
+                if (!button.enabled) return null;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setDemoModal(button.icon)}
+                    style={{
+                      background: demoProfile.buttonColors[key]?.bg || '#fff',
+                      color: demoProfile.buttonColors[key]?.text || '#333',
+                      padding: '12px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontWeight: '900',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    {button.icon} {button.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {demoProfile.emails && demoProfile.emails.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                {demoProfile.emails.map((email, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setDemoModal('email')}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      marginBottom: '8px',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    📧 {email}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoProfile.phones && demoProfile.phones.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                {demoProfile.phones.map((phone, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setDemoModal('phone')}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      marginBottom: '8px',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ☎️ {phone}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoProfile.websites && demoProfile.websites.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                {demoProfile.websites.map((website, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setDemoModal('website')}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      background: 'rgba(255,255,255,0.2)',
+                      color: 'white',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      textDecoration: 'none',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      marginBottom: '8px',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🔗 Visit Website
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {demoProfile.socialHandles && demoProfile.socialHandles.length > 0 && (
+              <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '2px solid rgba(255,255,255,0.3)' }}>
+                <p style={{ color: 'white', fontSize: '12px', fontWeight: '700', marginBottom: '12px' }}>Follow</p>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {demoProfile.socialHandles.map((handle, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setDemoModal('social')}
+                      style={{
+                        background: 'rgba(255,255,255,0.2)',
+                        color: 'white',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontWeight: '700',
+                        fontSize: '12px',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {handle.platform}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p style={{ color: 'white', fontSize: '12px', marginTop: '24px', fontWeight: '600' }}>
+              ✨ This is a demo. Click any button or link above to see the modal! ✨
+            </p>
+          </div>
+        </div>
+
+        {demoModal && (
+          <div style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: '1000',
+            padding: '20px',
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '20px',
+              padding: '30px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '900', margin: 0 }}>
+                  {demoModal === 'email' && '📧 Email'}
+                  {demoModal === 'phone' && '☎️ Phone'}
+                  {demoModal === 'website' && '🔗 Website'}
+                  {demoModal === 'social' && '📱 Social'}
+                  {demoModal === '📅' && '📅 Book a Meeting'}
+                  {demoModal === '💬' && '💬 Let\'s Connect'}
+                  {demoModal === '🤝' && '🤝 Collab Request'}
+                  {demoModal === '❤️' && '❤️ Support a Cause'}
+                </h3>
+                <button
+                  onClick={() => setDemoModal(null)}
+                  style={{ fontSize: '24px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {demoModal === 'email' && (
+                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
+                    ashworldco@gmail.com
+                  </p>
+                )}
+                {demoModal === 'phone' && (
+                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
+                    +1 234-455-6789
+                  </p>
+                )}
+                {demoModal === 'website' && (
+                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
+                    https://ashworldco.com
+                  </p>
+                )}
+                {demoModal === 'social' && (
+                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#1E90FF' }}>
+                    @ashworldco
+                  </p>
+                )}
+                {(demoModal === '📅' || demoModal === '💬' || demoModal === '🤝' || demoModal === '❤️') && (
+                  <p style={{ background: '#F3F4F6', borderRadius: '12px', padding: '14px', margin: 0, fontWeight: '700', color: '#333' }}>
+                    ✅ Modal opened successfully! In real app, users would see a message form here.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
     return (
       <div style={{
         minHeight: '100vh',
