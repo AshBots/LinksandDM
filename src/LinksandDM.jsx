@@ -3434,33 +3434,10 @@ const LinksAndDM = () => {
       </div>
     );
   }
-              <button
-                onClick={() => { setCurrentMessageType(dmButtons.bookMeeting); setShowMessageForm(true); }}
-                style={{
-                  width: '100%',
-                  borderRadius: '20px',
-                  padding: '16px 20px',
-                  fontWeight: '700',
-                  fontSize: '15px',
-                  border: '3px solid rgba(255,255,255,0.4)',
-                  background: buttonColors.bookMeeting.bg,
-                  color: buttonColors.bookMeeting.text,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'all 0.3s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: '20px' }}>📅</span>
-                <span>{dmButtons.bookMeeting.label}</span>
-              </button>
-            )}
 
-            {dmButtons.letsConnect.enabled && (
-              <button
+  // DEMO PREVIEW PAGE
+  if (currentView === 'demo-preview') {
+    const [demoModal, setDemoModal] = useState(null);
                 onClick={() => { setCurrentMessageType(dmButtons.letsConnect); setShowMessageForm(true); }}
                 style={{
                   width: '100%',
