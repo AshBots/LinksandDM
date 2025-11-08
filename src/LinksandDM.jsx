@@ -2758,12 +2758,75 @@ const LinksAndDM = () => {
 
   // PREVIEW PAGE
   if (currentView === 'preview') {
-    const theme = themes[profile.selectedTheme];
+    const [previewData, setPreviewData] = useState(null);
+    const [previewModal, setPreviewModal] = useState(null);
+    const [previewMessageForm, setPreviewMessageForm] = useState({ name: '', contact: '', message: '' });
+
+    // Load user profile data
+    useEffect(() => {
+      const loadPreviewProfile = async () => {
+        if (user) {
+          try {
+            const userData = (await getDoc(doc(db, 'users', user.uid))).data();
+            setPreviewData(userData);
+          } catch (err) {
+            console.error('Error loading preview:', err);
+          }
+        }
+      };
+      loadPreviewProfile();
+    }, [user]);
+
+    if (!previewData) return <div style={{ minHeight: '100vh', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading...</div>;
+
+    const displayProfile = previewData?.profile || profile;
+    const displayEmails = previewData?.emails || emails;
+    const displayPhones = previewData?.phones || phones;
+    const displayWebsites = previewData?.websites || websites;
+    const displaySocialHandles = previewData?.socialHandles || socialHandles;
+    const displayPortfolio = previewData?.portfolio || portfolio;
+    const displayProjects = previewData?.projects || projects;
+    const displayDmButtons = previewData?.dmButtons || dmButtons;
+    const displayButtonColors = previewData?.buttonColors || buttonColors;
+    const displayTheme = themes[displayProfile?.selectedTheme || 0];
+
+    const handleSendMessage = async (messageType) => {
+      if (!previewMessageForm.name || !previewMessageForm.contact || !previewMessageForm.message) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      try {
+        let messageTypeLabel = messageType?.label || messageType || 'Message';
+        if (messageType?.icon && messageType?.label) {
+          messageTypeLabel = `${messageType.icon} ${messageType.label}`;
+        }
+
+        await addDoc(collection(db, `users/${user.uid}/messages`), {
+          senderName: previewMessageForm.name,
+          senderContact: previewMessageForm.contact,
+          message: previewMessageForm.message,
+          messageType: messageTypeLabel,
+          timestamp: new Date(),
+          isPriority: previewData?.priorityContacts?.some(c => 
+            (typeof c === 'string' ? c === previewMessageForm.contact : 
+             c.phone === previewMessageForm.contact || c.handle === previewMessageForm.contact)
+          ) || false,
+        });
+
+        setPreviewMessageForm({ name: '', contact: '', message: '' });
+        setPreviewModal(null);
+        alert('✅ Message sent!');
+      } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Error sending message');
+      }
+    };
 
     return (
       <div style={{
         minHeight: '100vh',
-        background: profile.customBgColor ? profile.customBgColor : theme.gradient,
+        background: displayProfile.customBgColor ? displayProfile.customBgColor : displayTheme.gradient,
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
@@ -2788,8 +2851,8 @@ const LinksAndDM = () => {
 
           {/* Profile Section */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            {profile.profilePic ? (
-              <img src={profile.profilePic} alt="Profile" style={{
+            {displayProfile.profilePic ? (
+              <img src={displayProfile.profilePic} alt="Profile" style={{
                 width: '140px',
                 height: '140px',
                 borderRadius: '50%',
@@ -2823,7 +2886,7 @@ const LinksAndDM = () => {
               textShadow: '2px 2px 0px rgba(0,0,0,0.2)',
               margin: '0 0 8px 0',
             }}>
-              {profile.name}
+              {displayProfile.name}
             </h2>
             <p style={{
               color: 'white',
@@ -2832,7 +2895,7 @@ const LinksAndDM = () => {
               textShadow: '1px 1px 0px rgba(0,0,0,0.1)',
               margin: '0 0 12px 0',
             }}>
-              {profile.profession}
+              {displayProfile.profession}
             </p>
             <p style={{
               color: 'rgba(255,255,255,0.95)',
@@ -2841,13 +2904,448 @@ const LinksAndDM = () => {
               fontWeight: '600',
               margin: 0,
             }}>
-              {profile.bio}
+              {displayProfile.bio}
             </p>
           </div>
 
           {/* DM Buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-            {dmButtons.bookMeeting.enabled && (
+            {displayDmButtons.bookMeeting.enabled && (
+              <button
+                onClick={() => setPreviewModal({ type: 'message', buttonType: displayDmButtons.bookMeeting })}
+                style={{
+                  width: '100%',
+                  borderRadius: '20px',
+                  padding: '16px 20px',
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  border: '3px solid rgba(255,255,255,0.4)',
+                  background: displayButtonColors.bookMeeting.bg,
+                  color: displayButtonColors.bookMeeting.text,
+                  cursor: 'pointer',
+                }}
+              >
+                📅 Book a Meeting
+              </button>
+            )}
+            {displayDmButtons.letsConnect.enabled && (
+              <button
+                onClick={() => setPreviewModal({ type: 'message', buttonType: displayDmButtons.letsConnect })}
+                style={{
+                  width: '100%',
+                  borderRadius: '20px',
+                  padding: '16px 20px',
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  border: '3px solid rgba(255,255,255,0.4)',
+                  background: displayButtonColors.letsConnect.bg,
+                  color: displayButtonColors.letsConnect.text,
+                  cursor: 'pointer',
+                }}
+              >
+                💬 Let's Connect
+              </button>
+            )}
+            {displayDmButtons.collabRequest.enabled && (
+              <button
+                onClick={() => setPreviewModal({ type: 'message', buttonType: displayDmButtons.collabRequest })}
+                style={{
+                  width: '100%',
+                  borderRadius: '20px',
+                  padding: '16px 20px',
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  border: '3px solid rgba(255,255,255,0.4)',
+                  background: displayButtonColors.collabRequest.bg,
+                  color: displayButtonColors.collabRequest.text,
+                  cursor: 'pointer',
+                }}
+              >
+                🤝 Collab Request
+              </button>
+            )}
+            {displayDmButtons.supportCause.enabled && (
+              <button
+                onClick={() => setPreviewModal({ type: 'message', buttonType: displayDmButtons.supportCause })}
+                style={{
+                  width: '100%',
+                  borderRadius: '20px',
+                  padding: '16px 20px',
+                  fontWeight: '700',
+                  fontSize: '16px',
+                  border: '3px solid rgba(255,255,255,0.4)',
+                  background: displayButtonColors.supportCause.bg,
+                  color: displayButtonColors.supportCause.text,
+                  cursor: 'pointer',
+                }}
+              >
+                ❤️ Support a Cause
+              </button>
+            )}
+          </div>
+
+          {/* Link Buttons Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '12px',
+            marginBottom: '20px',
+          }}>
+            {displaySocialHandles?.length > 0 && (
+              <button
+                onClick={() => setPreviewModal({ type: 'handles', data: displaySocialHandles })}
+                style={{
+                  background: '#A855F7',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🌐<br/>@ Handles
+              </button>
+            )}
+            {displayEmails?.length > 0 && (
+              <button
+                onClick={() => setPreviewModal({ type: 'emails', data: displayEmails })}
+                style={{
+                  background: '#06B6D4',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📧<br/>@ Email
+              </button>
+            )}
+            {displayPhones?.length > 0 && (
+              <button
+                onClick={() => setPreviewModal({ type: 'phones', data: displayPhones })}
+                style={{
+                  background: '#10B981',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📱<br/>Contact
+              </button>
+            )}
+            {displayWebsites?.length > 0 && (
+              <button
+                onClick={() => setPreviewModal({ type: 'websites', data: displayWebsites })}
+                style={{
+                  background: '#EC4899',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🌍<br/>Website
+              </button>
+            )}
+            {displayPortfolio?.enabled && displayPortfolio?.url && (
+              <button
+                onClick={() => window.open(displayPortfolio.url, '_blank')}
+                style={{
+                  background: '#F59E0B',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🎨<br/>Portfolio
+              </button>
+            )}
+            {displayProjects?.enabled && displayProjects?.list?.length > 0 && (
+              <button
+                onClick={() => setPreviewModal({ type: 'projects', data: displayProjects.list })}
+                style={{
+                  background: '#F97316',
+                  color: 'white',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📁<br/>Projects
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => setCurrentView('landing')}
+            style={{
+              width: '100%',
+              background: 'rgba(255,255,255,0.3)',
+              border: '3px solid white',
+              color: 'white',
+              padding: '12px 24px',
+              borderRadius: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '14px',
+            }}
+          >
+            ← Back
+          </button>
+        </div>
+
+        {/* Modals */}
+        {previewModal && (
+          <div style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: '1000',
+            padding: '20px',
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '20px',
+              padding: '30px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: '900', margin: 0 }}>
+                  {previewModal.type === 'message' && `${previewModal.buttonType.icon} ${previewModal.buttonType.label}`}
+                  {previewModal.type === 'handles' && '🌐 Social Handles'}
+                  {previewModal.type === 'emails' && '📧 Email'}
+                  {previewModal.type === 'phones' && '📱 Contact'}
+                  {previewModal.type === 'websites' && '🌍 Website'}
+                  {previewModal.type === 'projects' && '📁 Projects'}
+                </h3>
+                <button
+                  onClick={() => setPreviewModal(null)}
+                  style={{ fontSize: '28px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Message Form */}
+              {previewModal.type === 'message' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={previewMessageForm.name}
+                    onChange={(e) => setPreviewMessageForm({...previewMessageForm, name: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Your Email or Handle"
+                    value={previewMessageForm.contact}
+                    onChange={(e) => setPreviewMessageForm({...previewMessageForm, contact: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <textarea
+                    placeholder="Your Message"
+                    value={previewMessageForm.message}
+                    onChange={(e) => setPreviewMessageForm({...previewMessageForm, message: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      fontFamily: "'Poppins', sans-serif",
+                      resize: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => handleSendMessage(previewModal.buttonType)}
+                    style={{
+                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                      color: 'white',
+                      padding: '12px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontWeight: '900',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                    }}
+                  >
+                    Send Message ✨
+                  </button>
+                </div>
+              )}
+
+              {/* Handles */}
+              {previewModal.type === 'handles' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {previewModal.data.map((handle, idx) => (
+                    <a
+                      key={idx}
+                      href={`https://${handle.platform.toLowerCase()}.com/${handle.handle.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: '12px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>{handle.platform}</p>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#0066cc', margin: 0 }}>{handle.handle}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Emails */}
+              {previewModal.type === 'emails' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {previewModal.data.map((email, idx) => (
+                    <a
+                      key={idx}
+                      href={`mailto:${email}`}
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#1E90FF', margin: 0 }}>{email}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Phones */}
+              {previewModal.type === 'phones' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {previewModal.data.map((phone, idx) => (
+                    <a
+                      key={idx}
+                      href={`tel:${phone}`}
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#228B22', margin: 0 }}>{phone}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Websites */}
+              {previewModal.type === 'websites' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {previewModal.data.map((website, idx) => (
+                    <a
+                      key={idx}
+                      href={formatUrl(website)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#663399', margin: 0 }}>{website}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Projects */}
+              {previewModal.type === 'projects' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {previewModal.data.map((project, idx) => (
+                    <a
+                      key={idx}
+                      href={formatUrl(project.url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        background: '#F3F4F6',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        textDecoration: 'none',
+                        display: 'block',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <p style={{ fontSize: '12px', color: '#666', fontWeight: '700', margin: '0 0 4px 0' }}>Project</p>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#FF8C00', margin: 0 }}>{project.title}</p>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
               <button
                 onClick={() => { setCurrentMessageType(dmButtons.bookMeeting); setShowMessageForm(true); }}
                 style={{
@@ -3659,7 +4157,7 @@ const LinksAndDM = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #FFB84D 0%, #FFDA03 50%, #FFE5B4 100%)',
+        background: 'linear-gradient(135deg, #FF69B4 0%, #FF8FC7 100%)',
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
@@ -3708,8 +4206,307 @@ const LinksAndDM = () => {
               Links & DM
             </h1>
             <p style={{ fontSize: '16px', color: 'white', fontWeight: '700', margin: '0 0 20px 0' }}>
-              Connect • Collaborate • Create
+              Link in bio plus DM sorter tool
             </p>
+
+            {/* Message Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              <button
+                onClick={() => setDemoModal('📅')}
+                style={{
+                  background: '#B0E0E6',
+                  color: '#0066cc',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                📅 Book a Meeting
+              </button>
+              <button
+                onClick={() => setDemoModal('💬')}
+                style={{
+                  background: '#FFFF99',
+                  color: '#FF0000',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                💬 Let's Connect
+              </button>
+              <button
+                onClick={() => setDemoModal('🤝')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#008B8B',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                🤝 Collab Request
+              </button>
+              <button
+                onClick={() => setDemoModal('❤️')}
+                style={{
+                  background: '#FFB6D9',
+                  color: '#C71585',
+                  padding: '16px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                }}
+              >
+                ❤️ Support a Cause
+              </button>
+            </div>
+
+            {/* Link Buttons Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '12px',
+              marginBottom: '24px',
+            }}>
+              <button
+                onClick={() => setDemoModal('handles')}
+                style={{
+                  background: '#FFB6D9',
+                  color: '#C71585',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🌐<br/>@ Handles
+              </button>
+              <button
+                onClick={() => setDemoModal('email')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#0066cc',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📧<br/>@ Email
+              </button>
+              <button
+                onClick={() => setDemoModal('phone')}
+                style={{
+                  background: '#98FF98',
+                  color: '#228B22',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📱<br/>Contact
+              </button>
+              <button
+                onClick={() => setDemoModal('website')}
+                style={{
+                  background: '#DDA0DD',
+                  color: '#663399',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🌍<br/>Website
+              </button>
+              <button
+                onClick={() => setDemoModal('portfolio')}
+                style={{
+                  background: '#AFEEEE',
+                  color: '#0066cc',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                🎨<br/>Portfolio
+              </button>
+              <button
+                onClick={() => setDemoModal('projects')}
+                style={{
+                  background: '#FFE4B5',
+                  color: '#FF8C00',
+                  padding: '20px',
+                  border: '3px solid white',
+                  borderRadius: '16px',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                📁<br/>Projects
+              </button>
+            </div>
+
+            <p style={{ color: 'white', fontSize: '14px', fontWeight: '600', marginTop: '16px', textShadow: '1px 1px 2px rgba(0,0,0,0.2)' }}>
+              Ready to connect! 🚀
+            </p>
+          </div>
+        </div>
+
+        {/* Modals - Blank for all */}
+        {demoModal && (
+          <div style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: '1000',
+            padding: '20px',
+          }}>
+            <div style={{
+              background: 'white',
+              borderRadius: '20px',
+              padding: '40px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                <h3 style={{ fontSize: '22px', fontWeight: '900', margin: 0 }}>
+                  {demoModal === '📅' && '📅 Book a Meeting'}
+                  {demoModal === '💬' && '💬 Let\'s Connect'}
+                  {demoModal === '🤝' && '🤝 Collab Request'}
+                  {demoModal === '❤️' && '❤️ Support a Cause'}
+                  {demoModal === 'email' && '📧 Email'}
+                  {demoModal === 'phone' && '📱 Contact'}
+                  {demoModal === 'website' && '🌍 Website'}
+                  {demoModal === 'handles' && '🌐 Social Handles'}
+                  {demoModal === 'portfolio' && '🎨 Portfolio'}
+                  {demoModal === 'projects' && '📁 Projects'}
+                </h3>
+                <button
+                  onClick={() => setDemoModal(null)}
+                  style={{ fontSize: '28px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#333' }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Message Forms */}
+              {['📅', '💬', '🤝', '❤️'].includes(demoModal) && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={demoMessageForm.name}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, name: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Your Email or Handle"
+                    value={demoMessageForm.contact}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, contact: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                    }}
+                  />
+                  <textarea
+                    placeholder="Your Message"
+                    value={demoMessageForm.message}
+                    onChange={(e) => setDemoMessageForm({...demoMessageForm, message: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      fontWeight: '600',
+                      boxSizing: 'border-box',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      fontFamily: "'Poppins', sans-serif",
+                      resize: 'none',
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      setDemoModal(null);
+                      setDemoMessageForm({ name: '', contact: '', message: '' });
+                    }}
+                    style={{
+                      background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                      color: 'white',
+                      padding: '12px',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontWeight: '900',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                    }}
+                  >
+                    Send Message ✨
+                  </button>
+                </div>
+              )}
+
+              {/* Blank modals for links */}
+              {['email', 'phone', 'website', 'handles', 'portfolio', 'projects'].includes(demoModal) && (
+                <div style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <p style={{ color: '#999', fontSize: '16px', fontWeight: '600', textAlign: 'center' }}>
+                    Your contacts will appear here
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
             {/* Message Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
@@ -4063,6 +4860,9 @@ const LinksAndDM = () => {
       </div>
     );
   }
+
+  // INBOX PAGE
+  if (currentView === 'inbox' && user) {
     return (
       <div style={{
         minHeight: '100vh',
