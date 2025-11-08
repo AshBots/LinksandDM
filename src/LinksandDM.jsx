@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, updateDoc, doc, setDoc, getDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -140,6 +140,13 @@ const LinksAndDM = () => {
   // Add loading state for save operations
   const [isSaving, setIsSaving] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  // Show notification helper
+  const showNotify = (message, duration = 3000) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), duration);
+  };
 
   // Modal States
   const [showCharityModal, setShowCharityModal] = useState(false);
@@ -223,6 +230,28 @@ const LinksAndDM = () => {
     return unsubscribe;
   }, []);
 
+  // Real-time message listener
+  useEffect(() => {
+    if (user && currentView === 'inbox') {
+      try {
+        const q = query(
+          collection(db, `users/${user.uid}/messages`),
+          orderBy('timestamp', 'desc')
+        );
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const msgs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setMessages(msgs);
+        });
+        return unsubscribe;
+      } catch (error) {
+        console.error('Error setting up message listener:', error);
+      }
+    }
+  }, [user, currentView]);
+
   // Load user profile
   const loadUserProfile = async (uid) => {
     try {
@@ -269,7 +298,7 @@ const LinksAndDM = () => {
   // Save profile to Firebase
   const saveProfile = async (silent = false) => {
     if (!user || !profile.username.trim()) {
-      alert('⚠️ Please enter a username');
+      showNotify('⚠️ Please enter a username');
       return;
     }
     setIsSaving(true);
@@ -291,11 +320,11 @@ const LinksAndDM = () => {
         lastUpdated: new Date(),
       });
       if (!silent) {
-        alert('✅ Profile saved successfully!');
+        showNotify('✅ Profile saved successfully!');
       }
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('❌ Error saving profile: ' + error.message);
+      showNotify('❌ Error saving profile: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -354,7 +383,7 @@ const LinksAndDM = () => {
   // Generate share link
   const generateShareLink = async () => {
     if (!profile.username.trim()) {
-      alert('⚠️ Please set a username first!');
+      showNotify('⚠️ Please set a username first!');
       return;
     }
     
@@ -412,14 +441,14 @@ const LinksAndDM = () => {
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error) {
       console.error('Copy to clipboard failed:', error);
-      alert('❌ Failed to copy link. Please try again.');
+      showNotify('❌ Failed to copy link. Please try again.');
     }
   };
 
   // Send message
   const handleSendMessage = async () => {
     if (!messageForm.name || !messageForm.contact || !messageForm.message) {
-      alert('Please fill all fields');
+      showNotify('Please fill all fields');
       return;
     }
     try {
@@ -428,26 +457,26 @@ const LinksAndDM = () => {
       if (!recipientId && publicUsername) {
         const q = query(
           collection(db, 'users'),
-          where('profile.username', '==', publicUsername)
+          where('username', '==', publicUsername)
         );
         const querySnapshot = await getDocs(q);
         if (querySnapshot.docs.length === 0) {
-          alert('Recipient not found');
+          showNotify('Recipient not found');
           return;
         }
         recipientId = querySnapshot.docs[0].id;
       }
 
       if (!recipientId) {
-        alert('Error: Recipient not found');
+        showNotify('Error: Recipient not found');
         return;
       }
 
-      // Check if sender is in priority contacts (phone or handle)
+      // Check if sender is in priority contacts (by email)
       const recipientData = (await getDoc(doc(db, 'users', recipientId))).data();
       const isPriority = recipientData?.priorityContacts?.some(c => 
         (typeof c === 'string' ? c === messageForm.contact : 
-         c.phone === messageForm.contact || c.handle === messageForm.contact)
+         c.email === messageForm.contact)
       ) || false;
 
       // Get message type label
@@ -467,13 +496,13 @@ const LinksAndDM = () => {
       });
       setMessageForm({ name: '', contact: '', message: '' });
       setShowMessageForm(false);
-      alert('✅ Message sent successfully!');
+      showNotify('✅ Message sent successfully!');
       if (user) {
         loadMessages(user.uid);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Error sending message: ' + error.message);
+      showNotify('Error sending message');
     }
   };
 
@@ -504,7 +533,7 @@ const LinksAndDM = () => {
       }
     } catch (error) {
       console.error('Error deleting message:', error);
-      alert('Error deleting message');
+      showNotify('Error deleting message');
     }
   };
 
@@ -1331,10 +1360,30 @@ const LinksAndDM = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #FF69B4 0%, #FFB84D 20%, #FFDA03 40%, #5FFF8C 60%, #00FF88 80%, #00E676 100%)',
+        background: 'linear-gradient(180deg, #E83E8C 0%, #D946A6 15%, #FF6B35 30%, #FFA500 50%, #FFD700 70%, #00FF9F 100%)',
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
+        {notification && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#333',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            fontWeight: '700',
+            fontSize: '14px',
+            zIndex: '9999',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            animation: 'slideDown 0.3s ease-out',
+          }}>
+            {notification}
+            <style>{`@keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }`}</style>
+          </div>
+        )}
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '60px', marginTop: '20px' }}>
             <h1 style={{
@@ -1347,19 +1396,19 @@ const LinksAndDM = () => {
             <button
               onClick={() => user ? setCurrentView('editor') : setCurrentView('auth')}
               style={{
-                background: 'linear-gradient(135deg, #6366F1 0%, #3B82F6 100%)',
+                background: 'linear-gradient(135deg, #FF8C00 0%, #FFA500 100%)',
                 color: 'white',
-                padding: '20px 50px',
+                padding: '28px 70px',
                 borderRadius: '50px',
                 border: 'none',
                 fontWeight: '900',
-                fontSize: '24px',
+                fontSize: '28px',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
-                boxShadow: '0 10px 40px rgba(99, 102, 241, 0.4)',
+                boxShadow: '0 15px 50px rgba(255, 140, 0, 0.5)',
               }}
-              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.08)'; e.target.style.boxShadow = '0 15px 50px rgba(99, 102, 241, 0.6)'; }}
-              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 10px 40px rgba(99, 102, 241, 0.4)'; }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.1)'; e.target.style.boxShadow = '0 20px 60px rgba(255, 140, 0, 0.7)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 15px 50px rgba(255, 140, 0, 0.5)'; }}
             >
               Let's Do It!
             </button>
@@ -1614,98 +1663,115 @@ const LinksAndDM = () => {
       }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           {/* Professional Header */}
+          <h1 style={{ 
+            fontSize: '52px', 
+            fontWeight: '900', 
+            color: 'white', 
+            textShadow: '3px 3px 0px rgba(0,0,0,0.2)',
+            textAlign: 'center',
+            marginBottom: '40px',
+            marginTop: '30px',
+          }}>
+            Build your<br/>digital presence
+          </h1>
           <div style={{
-            background: 'rgba(255,255,255,0.15)',
-            borderRadius: '20px',
-            padding: '18px',
+            display: 'flex',
+            gap: '16px',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            marginBottom: '40px',
+          }}>
+            <button
+              onClick={() => setCurrentView('preview')}
+              style={{
+                background: 'white',
+                color: '#10B981',
+                padding: '16px 40px',
+                borderRadius: '24px',
+                border: '4px solid #10B981',
+                fontWeight: '800',
+                cursor: 'pointer',
+                fontSize: '18px',
+                transition: 'all 0.3s',
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(16, 185, 129, 0.3)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
+            >
+              👁️ Preview
+            </button>
+            <button
+              onClick={() => setCurrentView('inbox')}
+              style={{
+                background: 'white',
+                color: '#3B82F6',
+                padding: '16px 40px',
+                borderRadius: '24px',
+                border: '4px solid #3B82F6',
+                fontWeight: '800',
+                cursor: 'pointer',
+                fontSize: '18px',
+                transition: 'all 0.3s',
+              }}
+              onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)'; }}
+              onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = 'none'; }}
+            >
+              📬 Inbox ({messages.length})
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                padding: '16px 40px',
+                borderRadius: '24px',
+                border: '2px solid white',
+                fontWeight: '800',
+                cursor: 'pointer',
+                fontSize: '18px',
+                transition: 'all 0.3s',
+              }}
+              onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
+              onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.2)'; }}
+            >
+              🚪 Logout
+            </button>
+          </div>
+
+          <div style={{
+            background: 'rgba(255,255,255,0.95)',
+            borderRadius: '28px',
+            padding: '30px',
             marginBottom: '30px',
-            backdropFilter: 'blur(10px)',
             borderLeft: '5px solid rgba(168, 85, 247, 0.8)',
           }}>
-            <h1 style={{ fontSize: '28px', color: 'white', fontWeight: '800', margin: '0 0 16px 0' }}>Build Your Digital Presence</h1>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setCurrentView('preview')}
-                style={{
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; }}
-              >
-                👁️ Preview
-              </button>
-              <button
-                onClick={() => setCurrentView('inbox')}
-                style={{
-                  background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { e.target.style.transform = 'translateY(-2px)'; }}
-                onMouseLeave={(e) => { e.target.style.transform = 'translateY(0)'; }}
-              >
-                📬 Inbox
-              </button>
-              <button
-                onClick={handleLogout}
-                style={{
-                  background: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  padding: '12px 24px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
-                onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.2)'; }}
-              >
-                🚪 Logout
-              </button>
-            </div>
-          </div>
-
-          </div>
+            <h2 style={{ fontSize: '24px', color: '#A855F7', fontWeight: '900', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              👤 Profile
+            </h2>
 
             {/* Profile Picture */}
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <label style={{ cursor: 'pointer' }}>
+            <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+              <label style={{ cursor: 'pointer', display: 'inline-block' }}>
                 {profile.profilePic ? (
                   <img src={profile.profilePic} alt="Profile" style={{
-                    width: '120px',
-                    height: '120px',
+                    width: '160px',
+                    height: '160px',
                     borderRadius: '50%',
                     objectFit: 'cover',
-                    border: '4px solid #A855F7',
+                    border: '6px solid #A855F7',
+                    boxShadow: '0 15px 35px rgba(168, 85, 247, 0.3)',
                   }} />
                 ) : (
                   <div style={{
-                    width: '120px',
-                    height: '120px',
+                    width: '160px',
+                    height: '160px',
                     borderRadius: '50%',
                     background: '#F3F4F6',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '48px',
-                    border: '4px solid #A855F7',
-                    margin: '0 auto',
+                    fontSize: '64px',
+                    border: '6px solid #A855F7',
+                    boxShadow: '0 15px 35px rgba(168, 85, 247, 0.3)',
                   }}>
                     📸
                   </div>
@@ -1729,9 +1795,9 @@ const LinksAndDM = () => {
             </div>
 
             {/* Basic Info */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Name</label>
+                <label style={{ display: 'block', fontWeight: '800', marginBottom: '8px', fontSize: '16px', color: '#333' }}>Name</label>
                 <input
                   type="text"
                   value={profile.name}
@@ -1740,16 +1806,16 @@ const LinksAndDM = () => {
                     width: '100%',
                     border: '2px solid #E5E7EB',
                     borderRadius: '12px',
-                    padding: '10px',
+                    padding: '14px',
                     fontWeight: '600',
                     boxSizing: 'border-box',
-                    fontSize: '14px',
+                    fontSize: '16px',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Profession</label>
+                <label style={{ display: 'block', fontWeight: '800', marginBottom: '8px', fontSize: '16px', color: '#333' }}>Profession</label>
                 <input
                   type="text"
                   value={profile.profession}
@@ -1758,16 +1824,16 @@ const LinksAndDM = () => {
                     width: '100%',
                     border: '2px solid #E5E7EB',
                     borderRadius: '12px',
-                    padding: '10px',
+                    padding: '14px',
                     fontWeight: '600',
                     boxSizing: 'border-box',
-                    fontSize: '14px',
+                    fontSize: '16px',
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: '700', marginBottom: '6px', fontSize: '14px', color: '#333' }}>Bio</label>
+                <label style={{ display: 'block', fontWeight: '800', marginBottom: '8px', fontSize: '16px', color: '#333' }}>Bio</label>
                 <textarea
                   value={profile.bio}
                   onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
@@ -1775,12 +1841,12 @@ const LinksAndDM = () => {
                     width: '100%',
                     border: '2px solid #E5E7EB',
                     borderRadius: '12px',
-                    padding: '10px',
+                    padding: '14px',
                     fontWeight: '600',
                     boxSizing: 'border-box',
-                    minHeight: '80px',
+                    minHeight: '100px',
                     resize: 'vertical',
-                    fontSize: '14px',
+                    fontSize: '16px',
                   }}
                 />
               </div>
@@ -2490,7 +2556,7 @@ const LinksAndDM = () => {
                   onClick={() => setProfile(prev => ({ ...prev, selectedTheme: idx }))}
                   style={{
                     background: theme.gradient,
-                    border: profile.selectedTheme === idx ? '4px solid #333' : '2px solid #ddd',
+                    border: 'none',
                     borderRadius: '16px',
                     padding: '20px',
                     cursor: 'pointer',
@@ -2499,6 +2565,7 @@ const LinksAndDM = () => {
                     color: 'white',
                     textShadow: '1px 1px 0px rgba(0,0,0,0.2)',
                     transition: 'all 0.2s',
+                    boxShadow: profile.selectedTheme === idx ? '0 0 0 4px #A855F7, 0 8px 16px rgba(168, 85, 247, 0.3)' : '0 4px 12px rgba(0,0,0,0.1)',
                   }}
                   onMouseEnter={(e) => { e.target.style.transform = 'scale(1.05)'; }}
                   onMouseLeave={(e) => { e.target.style.transform = 'scale(1)'; }}
@@ -2573,51 +2640,28 @@ const LinksAndDM = () => {
             overflow: 'hidden',
           }}>
             <h2 style={{ fontSize: '20px', color: 'white', fontWeight: '900', margin: '0 0 12px 0' }}>⭐ Friends & Family (Priority)</h2>
-            <p style={{ color: 'white', fontWeight: '600', marginBottom: '16px', fontSize: '13px' }}>Add phone number + handle. Messages from these contacts show ⭐</p>
+            <p style={{ color: 'white', fontWeight: '600', marginBottom: '16px', fontSize: '13px' }}>Add email addresses from friends & family. Messages from these emails show ⭐</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px' }}>
               {priorityContacts.map((contact, idx) => (
                 <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
-                    type="tel"
-                    value={typeof contact === 'string' ? '' : (contact.phone || '')}
+                    type="email"
+                    value={typeof contact === 'string' ? contact : (contact.email || '')}
                     onChange={(e) => {
                       const newContacts = [...priorityContacts];
                       if (typeof newContacts[idx] === 'string') {
-                        newContacts[idx] = { phone: e.target.value, handle: '' };
+                        newContacts[idx] = { email: e.target.value };
                       } else {
-                        newContacts[idx].phone = e.target.value;
+                        newContacts[idx].email = e.target.value;
                       }
                       setPriorityContacts(newContacts);
                     }}
-                    placeholder="+1234567890"
+                    placeholder="friend@email.com"
                     style={{
-                      flex: 0.4,
+                      flex: 1,
                       border: 'none',
                       borderRadius: '8px',
-                      padding: '8px',
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    value={typeof contact === 'string' ? contact : (contact.handle || '')}
-                    onChange={(e) => {
-                      const newContacts = [...priorityContacts];
-                      if (typeof newContacts[idx] === 'string') {
-                        newContacts[idx] = { phone: '', handle: e.target.value };
-                      } else {
-                        newContacts[idx].handle = e.target.value;
-                      }
-                      setPriorityContacts(newContacts);
-                    }}
-                    placeholder="@handle"
-                    style={{
-                      flex: 0.6,
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '8px',
+                      padding: '10px',
                       fontWeight: '600',
                       fontSize: '13px',
                       boxSizing: 'border-box',
@@ -2642,7 +2686,7 @@ const LinksAndDM = () => {
               ))}
             </div>
             <button
-              onClick={() => setPriorityContacts([...priorityContacts, { phone: '', handle: '' }])}
+              onClick={() => setPriorityContacts([...priorityContacts, { email: '' }])}
               style={{
                 width: '100%',
                 background: 'rgba(255,255,255,0.3)',
@@ -2792,7 +2836,7 @@ const LinksAndDM = () => {
 
     const handleSendMessage = async (messageType) => {
       if (!previewMessageForm.name || !previewMessageForm.contact || !previewMessageForm.message) {
-        alert('Please fill in all fields');
+        showNotify('Please fill in all fields');
         return;
       }
 
@@ -2810,16 +2854,16 @@ const LinksAndDM = () => {
           timestamp: new Date(),
           isPriority: previewData?.priorityContacts?.some(c => 
             (typeof c === 'string' ? c === previewMessageForm.contact : 
-             c.phone === previewMessageForm.contact || c.handle === previewMessageForm.contact)
+             c.email === previewMessageForm.contact)
           ) || false,
         });
 
         setPreviewMessageForm({ name: '', contact: '', message: '' });
         setPreviewModal(null);
-        alert('✅ Message sent!');
+        showNotify('✅ Message sent!');
       } catch (error) {
         console.error('Error sending message:', error);
-        alert('Error sending message');
+        showNotify('Error sending message');
       }
     };
 
@@ -2831,6 +2875,50 @@ const LinksAndDM = () => {
         fontFamily: "'Poppins', sans-serif",
       }}>
         <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          {/* User Navigation Buttons (only for logged-in user) */}
+          {user && (
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              marginBottom: '20px',
+              justifyContent: 'center',
+            }}>
+              <button
+                onClick={() => setCurrentView('editor')}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid white',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
+                onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
+                onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.2)'; }}
+              >
+                ✏️ Edit
+              </button>
+              <button
+                onClick={() => setCurrentView('inbox')}
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '2px solid white',
+                  color: 'white',
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
+                onMouseEnter={(e) => { e.target.style.background = 'rgba(255,255,255,0.3)'; }}
+                onMouseLeave={(e) => { e.target.style.background = 'rgba(255,255,255,0.2)'; }}
+              >
+                📬 Inbox
+              </button>
+            </div>
+          )}
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             <h1 style={{
@@ -4870,6 +4958,24 @@ const LinksAndDM = () => {
         padding: '20px',
         fontFamily: "'Poppins', sans-serif",
       }}>
+        {notification && (
+          <div style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#333',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '12px',
+            fontWeight: '700',
+            fontSize: '14px',
+            zIndex: '9999',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+          }}>
+            {notification}
+          </div>
+        )}
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '12px', flexWrap: 'wrap' }}>
             <button
