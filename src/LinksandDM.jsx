@@ -126,6 +126,15 @@ function LinksAndDM() {
     senderContact: "",
     message: "",
   });
+  // Modals and Inbox
+const [showCharityModal, setShowCharityModal] = useState(false);
+const [inbox, setInbox] = useState([]);
+
+// Opens message form modal for Book a Meeting / Let's Connect / Collab Request
+const openMessageForm = (type) => {
+  setCurrentMessageType(type);
+  setShowMessageForm(true);
+};
 
   // ---------------------------
   // Authentication watcher
