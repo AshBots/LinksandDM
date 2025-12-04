@@ -1,10 +1,3 @@
-// =========================================
-// LinksAndDM.jsx  —  Final Production Build
-// =========================================
-// All inline styles preserved exactly as before
-// Full Firebase + Public Profile + DM + Editor logic fixed
-// -----------------------------------------
-
 import React, { useState, useEffect } from "react";
 import {
   getAuth,
@@ -12,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -27,9 +21,9 @@ import {
 } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
 
-// ----------------------
-// 🔥 Firebase Initialize
-// ----------------------
+// ==========================================
+// 1. FIREBASE CONFIGURATION
+// ==========================================
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_AUTH_DOMAIN",
@@ -39,153 +33,220 @@ const firebaseConfig = {
   appId: "YOUR_APP_ID",
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ----------------------------------
-// 🧱 Error Boundary to wrap the app
-// ----------------------------------
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-  componentDidCatch(error, info) {
-    console.error("ErrorBoundary caught:", error, info);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "60px",
-            fontFamily: "sans-serif",
-          }}
-        >
-          <h2>⚠️ Something went wrong.</h2>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              marginTop: "20px",
-              background: "#6366f1",
-              color: "white",
-              border: "none",
-              padding: "10px 20px",
-              borderRadius: "8px",
-              cursor: "pointer",
-            }}
-          >
-            Reload
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+// ==========================================
+// 2. STYLES (High-End & Glassmorphism)
+// ==========================================
+const styles = {
+  container: {
+    fontFamily: "'Inter', 'Poppins', sans-serif",
+    minHeight: "100vh",
+    color: "#1f2937",
+    background: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)",
+  },
+  landingHero: {
+    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "white",
+    textAlign: "center",
+    padding: "20px",
+  },
+  btnPrimary: {
+    background: "#ffffff",
+    color: "#764ba2",
+    fontWeight: "800",
+    fontSize: "18px",
+    padding: "16px 32px",
+    borderRadius: "50px",
+    border: "none",
+    cursor: "pointer",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+    transition: "transform 0.2s",
+    width: "200px", // Fixed width for equality
+    margin: "10px",
+  },
+  btnSecondary: {
+    background: "rgba(255,255,255,0.2)",
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: "18px",
+    padding: "16px 32px",
+    borderRadius: "50px",
+    border: "2px solid #ffffff",
+    cursor: "pointer",
+    backdropFilter: "blur(10px)",
+    width: "200px", // Fixed width for equality
+    margin: "10px",
+  },
+  card: {
+    background: "rgba(255, 255, 255, 0.95)",
+    backdropFilter: "blur(20px)",
+    borderRadius: "24px",
+    padding: "30px",
+    maxWidth: "480px",
+    width: "100%",
+    margin: "40px auto",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+    border: "1px solid rgba(255,255,255,0.5)",
+  },
+  input: {
+    width: "100%",
+    padding: "14px",
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+    marginBottom: "12px",
+    fontSize: "16px",
+    background: "#f9fafb",
+    boxSizing: "border-box",
+  },
+  smartBtn: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "12px 16px",
+    background: "white",
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    marginBottom: "10px",
+    fontWeight: "600",
+    color: "#374151",
+  },
+  eyeBtn: {
+    background: "transparent",
+    border: "none",
+    fontSize: "20px",
+    cursor: "pointer",
+  },
+  dmButtonPublic: {
+    display: "block",
+    width: "100%",
+    padding: "16px",
+    borderRadius: "16px",
+    border: "none",
+    fontSize: "16px",
+    fontWeight: "700",
+    marginBottom: "12px",
+    cursor: "pointer",
+    color: "white",
+    boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+    transition: "transform 0.2s",
+  },
+  linkRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "12px",
+    background: "white",
+    borderRadius: "12px",
+    marginBottom: "8px",
+    textDecoration: "none",
+    color: "#333",
+    fontWeight: "600",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
+  },
+};
 
-// --------------------------------------
-// 🧩 Main Functional Component
-// --------------------------------------
+// ==========================================
+// 3. MAIN COMPONENT
+// ==========================================
 function LinksAndDM() {
-  // ---------- App States ----------
+  // App State
   const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [currentView, setCurrentView] = useState("landing");
   const [isSaving, setIsSaving] = useState(false);
   const [shareLink, setShareLink] = useState("");
+
+  // Public Profile Logic
   const [receiverUid, setReceiverUid] = useState("");
   const [publicProfile, setPublicProfile] = useState({});
-  const [priorityContacts, setPriorityContacts] = useState([]);
+  const [contactsPublic, setContactsPublic] = useState([]);
+  
+  // Data State
+  const [priorityContacts, setPriorityContacts] = useState([]); // Array of emails
   const [charityLinks, setCharityLinks] = useState([]);
   const [socialHandles, setSocialHandles] = useState([]);
   const [emails, setEmails] = useState([]);
   const [phones, setPhones] = useState([]);
   const [websites, setWebsites] = useState([]);
   const [portfolio, setPortfolio] = useState({});
-  const [projects, setProjects] = useState({});
+  const [projects, setProjects] = useState([]);
   const [profile, setProfile] = useState({
     name: "",
     profession: "",
     bio: "",
     username: "",
     profilePic: "",
-    selectedTheme: "Soft Lavender",
+    theme: "Light",
   });
 
-  // Message modal
-  const [showMessageForm, setShowMessageForm] = useState(false);
-  const [currentMessageType, setCurrentMessageType] = useState("");
-  const [messageForm, setMessageForm] = useState({
-    senderName: "",
-    senderContact: "",
-    message: "",
-  });
-  // Modals and Inbox
-const [showCharityModal, setShowCharityModal] = useState(false);
-const [inbox, setInbox] = useState([]);
+  // Inbox State
+  const [inbox, setInbox] = useState([]);
 
-// Opens message form modal for Book a Meeting / Let's Connect / Collab Request
-const openMessageForm = (type) => {
-  setCurrentMessageType(type);
-  setShowMessageForm(true);
-};
+  // Modals
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(""); // 'meeting', 'collab', 'connect', 'cause', 'link'
+  const [modalData, setModalData] = useState(null); // For generic link modals
+  const [msgForm, setMsgForm] = useState({ name: "", email: "", message: "" });
 
-  // ---------------------------
-  // Authentication watcher
-  // ---------------------------
+  // ------------------------------------
+  // AUTH & ROUTING
+  // ------------------------------------
   useEffect(() => {
+    // 1. Check URL for Public Profile
+    const path = window.location.pathname;
+    if (path.startsWith("/user/")) {
+      const username = path.split("/user/")[1];
+      if (username) {
+        loadPublicProfile(username);
+      }
+    }
+
+    // 2. Auth Listener
     const unsub = onAuthStateChanged(auth, async (usr) => {
       if (usr) {
         setUser(usr);
-        if (usr.email === "ashworldco@gmail.com") setIsAdmin(true);
-        await loadUserProfile(usr.uid);
+        await loadUserData(usr.uid);
       } else {
         setUser(null);
-        setIsAdmin(false);
       }
     });
     return () => unsub();
   }, []);
 
-  // ---------------------------------
-  // Load user profile from Firestore
-  // ---------------------------------
-  const loadUserProfile = async (uid) => {
-    try {
-      const userRef = doc(db, "users", uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        setProfile(data.profile || {});
-        setPriorityContacts(data.priorityContacts || []);
-        setCharityLinks(data.charityLinks || []);
-        setSocialHandles(data.socialHandles || []);
-        setEmails(data.emails || []);
-        setPhones(data.phones || []);
-        setWebsites(data.websites || []);
-        setPortfolio(data.portfolio || {});
-        setProjects(data.projects || {});
-      }
-    } catch (err) {
-      console.error("Load profile error:", err);
+  // ------------------------------------
+  // FIREBASE ACTIONS
+  // ------------------------------------
+  const loadUserData = async (uid) => {
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const d = snap.data();
+      setProfile(d.profile || {});
+      setPriorityContacts(d.priorityContacts || []);
+      setCharityLinks(d.charityLinks || []);
+      setSocialHandles(d.socialHandles || []);
+      setEmails(d.emails || []);
+      setPhones(d.phones || []);
+      setWebsites(d.websites || []);
+      setPortfolio(d.portfolio || {});
+      setProjects(d.projects || []);
     }
   };
 
-  // ---------------------------------
-  // Save user profile to Firestore
-  // ---------------------------------
   const saveProfile = async () => {
     if (!user) return;
+    setIsSaving(true);
     try {
-      const ref = doc(db, "users", user.uid);
       await setDoc(
-        ref,
+        doc(db, "users", user.uid),
         {
           profile,
           priorityContacts,
@@ -200,926 +261,527 @@ const openMessageForm = (type) => {
         },
         { merge: true }
       );
-    } catch (err) {
-      console.error("Save error:", err);
+      // Generate Link
+      if (profile.username) {
+        setShareLink(`https://linksanddms.netlify.app/user/${profile.username}`);
+      }
+      alert("✅ Saved Successfully!");
+    } catch (e) {
+      console.error(e);
+      alert("Error saving data.");
     }
+    setIsSaving(false);
   };
 
-  // ---------------------------------
-  // Generate shareable link
-  // ---------------------------------
-  const generateShareLink = async () => {
-    if (!profile.username) {
-      alert("Please set a username first!");
-      return;
-    }
-    await saveProfile();
-    const url = `https://linksanddms.netlify.app/user/${profile.username}`;
-    setShareLink(url);
-    alert("✅ Link generated!");
-  };
-
-  // ---------------------------------
-  // Load public profile by username
-  // ---------------------------------
-  const loadPublicProfileByUsername = async (username) => {
+  const loadPublicProfile = async (username) => {
     try {
-      const q = query(collection(db, "users"), where("profile.username", "==", username));
+      const q = query(
+        collection(db, "users"),
+        where("profile.username", "==", username)
+      );
       const snap = await getDocs(q);
       if (!snap.empty) {
-        const docData = snap.docs[0];
-        const data = docData.data();
-        setReceiverUid(docData.id);
-        setPublicProfile(data.profile || {});
-        setPriorityContacts(data.priorityContacts || []);
-        setCharityLinks(data.charityLinks || []);
-        setSocialHandles(data.socialHandles || []);
-        setEmails(data.emails || []);
-        setPhones(data.phones || []);
-        setWebsites(data.websites || []);
-        setPortfolio(data.portfolio || {});
-        setProjects(data.projects || {});
+        const d = snap.docs[0].data();
+        setReceiverUid(snap.docs[0].id);
+        setPublicProfile(d.profile || {});
+        // Store contacts locally for view
+        setContactsPublic({
+          priority: d.priorityContacts,
+          charity: d.charityLinks,
+          social: d.socialHandles,
+          emails: d.emails,
+          phones: d.phones,
+          websites: d.websites,
+          portfolio: d.portfolio,
+          projects: d.projects,
+        });
         setCurrentView("public-preview");
-      } else setCurrentView("not-found");
-    } catch (err) {
-      console.error("Public load error:", err);
-      setCurrentView("not-found");
+      } else {
+        alert("User not found");
+        setCurrentView("landing");
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  // Detect direct public URL
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path.startsWith("/user/")) {
-      const username = decodeURIComponent(path.split("/user/")[1]);
-      loadPublicProfileByUsername(username);
-    }
-  }, []);
-
-  // ---------------------------------
-  // DM Modal + Firestore Send
-  // ---------------------------------
   const handleSendMessage = async () => {
-    if (!receiverUid) return;
-    if (!messageForm.senderContact) {
-      alert("Please enter your email.");
+    // Determine Receiver (Demo or Real)
+    if (currentView === "demo-preview") {
+      alert(`✅ Demo Message Sent!\nType: ${modalType}\nMessage: ${msgForm.message}`);
+      setModalOpen(false);
+      setMsgForm({ name: "", email: "", message: "" });
       return;
     }
-    const isPriority = priorityContacts.some(
-      (c) =>
-        c.email?.trim().toLowerCase() ===
-        messageForm.senderContact.trim().toLowerCase()
-    );
-    const msgData = {
-      senderName: messageForm.senderName,
-      senderContact: messageForm.senderContact,
-      message: messageForm.message,
-      messageType: currentMessageType,
-      timestamp: serverTimestamp(),
-      isPriority,
-    };
+
+    if (!receiverUid) return;
+
+    // Check Priority
+    let isPriority = false;
+    // We need to check against the receiver's priority list (stored in contactsPublic for public view)
+    if (contactsPublic?.priority?.some(p => p.toLowerCase() === msgForm.email.toLowerCase())) {
+        isPriority = true;
+    }
+
     try {
-      await addDoc(collection(db, "users", receiverUid, "messages"), msgData);
-      alert("✅ Message sent!");
-      setShowMessageForm(false);
-      setMessageForm({ senderName: "", senderContact: "", message: "" });
-    } catch (err) {
-      console.error("Send msg error:", err);
+      await addDoc(collection(db, "users", receiverUid, "messages"), {
+        senderName: msgForm.name,
+        senderContact: msgForm.email,
+        message: msgForm.message,
+        type: modalType, // 'meeting', 'collab', 'connect'
+        isPriority,
+        timestamp: serverTimestamp(),
+      });
+      alert("✅ Message Sent!");
+      setModalOpen(false);
+      setMsgForm({ name: "", email: "", message: "" });
+    } catch (e) {
+      console.error(e);
+      alert("Failed to send.");
     }
   };
-    // ---------------------------------------------------
-  // 🖥️ View Switcher: Landing / Auth / Editor / Public
-  // ---------------------------------------------------
-  const renderView = () => {
-    switch (currentView) {
-      // ----------------
-      // 1️⃣ Landing Page
-      // ----------------
-      case "landing":
-        return (
-          <div
-            style={{
-              background: "linear-gradient(135deg,#fbc2eb 0%,#a6c1ee 100%)",
-              minHeight: "100vh",
-              fontFamily: "Poppins,sans-serif",
-              padding: "40px 20px",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontSize: "38px", fontWeight: "700", marginBottom: "8px" }}>
-              🔗 Links & DM 💬
-            </div>
-            <button
-              style={{
-                marginTop: "8px",
-                fontSize: "20px",
-                padding: "10px 20px",
-                background: "#fff",
-                borderRadius: "30px",
-                border: "none",
-                cursor: "pointer",
-              }}
-              onClick={() => setCurrentView("auth")}
-            >
-              Let's Do It!
-            </button>
 
-            <h1 style={{ fontSize: "46px", fontWeight: "900", marginTop: "60px" }}>
-              One Link.<br />Sorted DMs.
-            </h1>
-            <p style={{ fontSize: "18px", marginTop: "20px" }}>
-              The Ultimate Link-in-Bio for Creators ✨<br />
-              Connect with followers • Organize messages • Manage links • Build your brand
-            </p>
+  const handleForgotPassword = async () => {
+    const email = prompt("Enter your email for password reset:");
+    if (email) {
+      try {
+        await sendPasswordResetEmail(auth, email);
+        alert("Check your email for reset instructions.");
+      } catch (e) {
+        alert(e.message);
+      }
+    }
+  };
 
-            <div style={{ marginTop: "60px" }}>
-              <button
-                style={{
-                  padding: "16px 30px",
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  borderRadius: "50px",
-                  border: "none",
-                  background: "#a78bfa",
-                  color: "white",
-                  marginRight: "12px",
-                }}
-                onClick={() => setCurrentView("auth")}
-              >
-                🚀 Get Started Now
-              </button>
-              <button
-                style={{
-                  padding: "16px 30px",
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  borderRadius: "50px",
-                  border: "2px solid #a78bfa",
-                  background: "white",
-                  color: "#a78bfa",
-                }}
-                onClick={() => setCurrentView("demo-preview")}
-              >
-                ✨ See Demo
-              </button>
-            </div>
-          </div>
-        );
+  // ------------------------------------
+  // RENDER HELPERS
+  // ------------------------------------
+  const renderModal = () => {
+    if (!modalOpen) return null;
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          backdropFilter: "blur(5px)",
+        }}
+        onClick={(e) => {
+            // Close if clicked outside card
+            if(e.target === e.currentTarget) setModalOpen(false)
+        }}
+      >
+        <div style={styles.card}>
+          <h3 style={{ marginTop: 0 }}>
+            {modalType === "meeting" && "📅 Book a Meeting"}
+            {modalType === "collab" && "🤝 Collab Request"}
+            {modalType === "connect" && "🌸 Let's Connect"}
+            {modalType === "cause" && "❤️ Support a Cause"}
+            {modalType === "link" && "🔗 Link Info"}
+          </h3>
 
-      // ---------------
-      // 2️⃣ Auth View
-      // ---------------
-      case "auth":
-        return (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: "100vh",
-              background: "linear-gradient(135deg,#fdfbfb 0%,#ebedee 100%)",
-            }}
-          >
-            <h2>Login / Sign Up to Links & DM</h2>
-            <input
-              id="email"
-              placeholder="Email"
-              style={{
-                width: "80%",
-                maxWidth: "400px",
-                margin: "10px",
-                padding: "12px",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-              }}
-            />
-            <input
-              id="password"
-              type="password"
-              placeholder="Password"
-              style={{
-                width: "80%",
-                maxWidth: "400px",
-                margin: "10px",
-                padding: "12px",
-                borderRadius: "8px",
-                border: "1px solid #ddd",
-              }}
-            />
-            <div style={{ marginTop: "20px" }}>
-              <button
-                onClick={async () => {
-                  const email = document.getElementById("email").value;
-                  const pw = document.getElementById("password").value;
-                  try {
-                    await signInWithEmailAndPassword(auth, email, pw);
-                    setCurrentView("editor");
-                  } catch {
-                    await createUserWithEmailAndPassword(auth, email, pw);
-                    setCurrentView("editor");
-                  }
-                }}
-                style={{
-                  background: "#6366f1",
-                  color: "white",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "12px 24px",
-                  cursor: "pointer",
-                }}
-              >
-                Continue
-              </button>
-            </div>
-            <button
-              onClick={() => setCurrentView("landing")}
-              style={{
-                marginTop: "40px",
-                border: "none",
-                background: "transparent",
-                color: "#6366f1",
-                cursor: "pointer",
-              }}
-            >
-              ← Back to Home
-            </button>
-          </div>
-        );
-
-      // -----------------
-      // 3️⃣ Editor Start
-      // -----------------
-      case "editor":
-        return (
-          <div
-            style={{
-              minHeight: "100vh",
-              background: "linear-gradient(180deg,#fceabb 0%,#f8b500 100%)",
-              padding: "40px 16px 100px",
-              fontFamily: "Poppins,sans-serif",
-            }}
-          >
-            <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-              ✏️ Edit Your Profile
-            </h2>
-
-            {/* Name / Profession / Bio */}
-            <div style={{ maxWidth: "500px", margin: "0 auto" }}>
+          {/* MESSAGE FORMS */}
+          {(modalType === "meeting" || modalType === "collab" || modalType === "connect") && (
+            <>
               <input
-                value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                placeholder="Name"
-                style={{
-                  width: "100%",
-                  marginBottom: "12px",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "none",
-                }}
+                style={styles.input}
+                placeholder="Your Name"
+                value={msgForm.name}
+                onChange={(e) => setMsgForm({ ...msgForm, name: e.target.value })}
               />
               <input
-                value={profile.profession}
-                onChange={(e) =>
-                  setProfile({ ...profile, profession: e.target.value })
-                }
-                placeholder="Profession"
-                style={{
-                  width: "100%",
-                  marginBottom: "12px",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "none",
-                }}
+                style={styles.input}
+                placeholder="Your Email"
+                value={msgForm.email}
+                onChange={(e) => setMsgForm({ ...msgForm, email: e.target.value })}
               />
               <textarea
-                value={profile.bio}
-                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                placeholder="Bio"
-                rows="3"
-                style={{
-                  width: "100%",
-                  marginBottom: "12px",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "none",
-                }}
+                style={{ ...styles.input, height: "100px" }}
+                placeholder="Your Message..."
+                value={msgForm.message}
+                onChange={(e) => setMsgForm({ ...msgForm, message: e.target.value })}
               />
-              <input
-                value={profile.username}
-                onChange={(e) =>
-                  setProfile({ ...profile, username: e.target.value })
-                }
-                placeholder="📱 Username (for shareable link)"
-                style={{
-                  width: "100%",
-                  marginBottom: "12px",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "none",
-                }}
-              />
-
               <button
-                onClick={generateShareLink}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  background: "#3b82f6",
-                  color: "white",
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  borderRadius: "10px",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+                style={{ ...styles.dmButtonPublic, background: "#6366f1" }}
+                onClick={handleSendMessage}
               >
-                🔗 Generate Share Link
+                Send Message
               </button>
+            </>
+          )}
 
-              {shareLink && (
-                <div
-                  style={{
-                    marginTop: "20px",
-                    background: "#fff",
-                    borderRadius: "12px",
-                    padding: "10px",
-                    textAlign: "center",
-                    wordBreak: "break-all",
-                  }}
-                >
-                  <p style={{ margin: "4px 0" }}>📱 Your Shareable Link:</p>
-                  <input
-                    readOnly
-                    value={shareLink}
-                    style={{
-                      width: "100%",
-                      border: "none",
-                      fontSize: "14px",
-                      textAlign: "center",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-                        {/* -------------------------------------------------- */}
-            {/* 💌 Smart DM Buttons  */}
-            {/* -------------------------------------------------- */}
-            <div
-              style={{
-                marginTop: "40px",
-                background: "linear-gradient(135deg,#f9a8d4 0%,#f472b6 100%)",
-                borderRadius: "20px",
-                padding: "18px 16px",
-                color: "white",
-              }}
-            >
-              <h3 style={{ marginBottom: "14px", fontSize: "20px", fontWeight: "700" }}>
-                💌 Smart DM Buttons
-              </h3>
-
-              {[
-                { key: "meeting", label: "📅 Book a Meeting" },
-                { key: "connect", label: "🌸 Let’s Connect" },
-                { key: "collab", label: "🤝 Collab Request" },
-                { key: "cause", label: "❤️ Support a Cause" },
-              ].map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    background: "white",
-                    borderRadius: "12px",
-                    padding: "10px 14px",
-                    marginBottom: "10px",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: "#333",
-                      fontWeight: "600",
-                      fontSize: "16px",
-                    }}
-                  >
-                    {b.label}
-                  </span>
-                  <button
-                    onClick={() =>
-                      b.key === "cause"
-                        ? setShowCharityModal(true)
-                        : openMessageForm(b.key)
-                    }
-                    style={{
-                      background:
-                        "linear-gradient(135deg,#a78bfa 0%,#6366f1 100%)",
-                      color: "white",
-                      fontSize: "14px",
-                      fontWeight: "700",
-                      border: "none",
-                      borderRadius: "10px",
-                      padding: "6px 14px",
-                      marginLeft: "auto",
-                      flexShrink: 0,
-                      cursor: "pointer",
-                    }}
-                  >
-                    👁️ Preview
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* -------------------------------------------------- */}
-            {/* ❤️ Charity / Cause Links */}
-            {/* -------------------------------------------------- */}
-            <div
-              style={{
-                background: "#FB7185",
-                borderRadius: "16px",
-                padding: "18px 16px",
-                marginTop: "24px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "stretch",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  color: "white",
-                  marginBottom: "10px",
-                }}
-              >
-                ❤️ Charity / Cause Links
-              </h3>
-
-              {charityLinks.map((link, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <input
-                    value={link.title}
-                    onChange={(e) =>
-                      setCharityLinks((prev) => {
-                        const arr = [...prev];
-                        arr[i].title = e.target.value;
-                        return arr;
-                      })
-                    }
-                    placeholder="Title"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontSize: "15px",
-                    }}
-                  />
-                  <input
-                    value={link.url}
-                    onChange={(e) =>
-                      setCharityLinks((prev) => {
-                        const arr = [...prev];
-                        arr[i].url = e.target.value;
-                        return arr;
-                      })
-                    }
-                    placeholder="URL"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontSize: "15px",
-                    }}
-                  />
-                </div>
-              ))}
-
-              <button
-                onClick={() =>
-                  setCharityLinks([...charityLinks, { title: "", url: "" }])
-                }
-                style={{
-                  marginTop: "6px",
-                  background: "rgba(255,255,255,0.25)",
-                  border: "2px dashed white",
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "700",
-                  borderRadius: "12px",
-                  padding: "10px 0",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                + Add Charity Link
-              </button>
-            </div>
-
-            {/* -------------------------------------------------- */}
-            {/* 🌐 Social Handles */}
-            {/* -------------------------------------------------- */}
-            <div
-              style={{
-                background: "#8B5CF6",
-                borderRadius: "16px",
-                padding: "18px 16px",
-                marginTop: "24px",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "stretch",
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  color: "white",
-                  marginBottom: "10px",
-                }}
-              >
-                🌐 Social Handles
-              </h3>
-
-              {socialHandles.map((h, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    marginBottom: "8px",
-                  }}
-                >
-                  <input
-                    value={h.platform}
-                    onChange={(e) =>
-                      setSocialHandles((prev) => {
-                        const arr = [...prev];
-                        arr[i].platform = e.target.value;
-                        return arr;
-                      })
-                    }
-                    placeholder="Platform"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontSize: "15px",
-                    }}
-                  />
-                  <input
-                    value={h.handle}
-                    onChange={(e) =>
-                      setSocialHandles((prev) => {
-                        const arr = [...prev];
-                        arr[i].handle = e.target.value;
-                        return arr;
-                      })
-                    }
-                    placeholder="@username"
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                      borderRadius: "8px",
-                      border: "none",
-                      fontSize: "15px",
-                    }}
-                  />
-                </div>
-              ))}
-
-              <button
-                onClick={() =>
-                  setSocialHandles([
-                    ...socialHandles,
-                    { platform: "", handle: "" },
-                  ])
-                }
-                style={{
-                  marginTop: "6px",
-                  background: "rgba(255,255,255,0.25)",
-                  border: "2px dashed white",
-                  color: "white",
-                  fontSize: "15px",
-                  fontWeight: "700",
-                  borderRadius: "12px",
-                  padding: "10px 0",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                + Add Handle
-              </button>
-            </div>
-
-            {/* -------------------------------------------------- */}
-            {/* 💾 Save All Changes */}
-            {/* -------------------------------------------------- */}
-            <div style={{ marginTop: "40px", textAlign: "center" }}>
-              <button
-                onClick={async () => {
-                  setIsSaving(true);
-                  await saveProfile();
-                  alert("✅ All changes saved!");
-                  setIsSaving(false);
-                }}
-                disabled={isSaving}
-                style={{
-                  width: "100%",
-                  background: "#10b981",
-                  color: "white",
-                  padding: "14px",
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  border: "none",
-                  borderRadius: "14px",
-                  cursor: isSaving ? "not-allowed" : "pointer",
-                  opacity: isSaving ? 0.6 : 1,
-                }}
-              >
-                💾 Save All Changes
-              </button>
-            </div>
-          </div>
-        );
-              // -----------------
-      // 4️⃣ Public Profile
-      // -----------------
-      case "public-preview":
-        return (
-          <div
-            style={{
-              minHeight: "100vh",
-              background: "linear-gradient(180deg,#e0c3fc 0%,#8ec5fc 100%)",
-              padding: "40px 16px",
-              fontFamily: "Poppins,sans-serif",
-              textAlign: "center",
-            }}
-          >
-            <img
-              src={publicProfile.profilePic || "https://via.placeholder.com/120"}
-              alt="profile"
-              style={{
-                width: "120px",
-                height: "120px",
-                borderRadius: "50%",
-                objectFit: "cover",
-                marginBottom: "10px",
-              }}
-            />
-            <h2>{publicProfile.name}</h2>
-            <p style={{ fontStyle: "italic", marginBottom: "20px" }}>
-              {publicProfile.profession}
-            </p>
-            <p>{publicProfile.bio}</p>
-
-            {/* DM Buttons */}
-            <div style={{ marginTop: "30px" }}>
-              <button
-                onClick={() => openMessageForm("meeting")}
-                style={dmBtnStyle}
-              >
-                📅 Book a Meeting
-              </button>
-              <button
-                onClick={() => openMessageForm("connect")}
-                style={dmBtnStyle}
-              >
-                🌸 Let's Connect
-              </button>
-              <button
-                onClick={() => openMessageForm("collab")}
-                style={dmBtnStyle}
-              >
-                🤝 Collab Request
-              </button>
-              <button onClick={() => setShowCharityModal(true)} style={dmBtnStyle}>
-                ❤️ Support a Cause
-              </button>
-            </div>
-
-            {/* Social + Contact + Links */}
-            <div style={{ marginTop: "40px" }}>
-              {socialHandles.map((s, i) => (
-                <a
-                  key={i}
-                  href={`https://www.${s.platform.toLowerCase()}.com/${s.handle.replace("@","")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={linkStyle}
-                >
-                  @{s.handle}
-                </a>
-              ))}
-              {emails.map((e, i) => (
-                <a key={i} href={`mailto:${e.email}`} style={linkStyle}>
-                  📧 {e.email}
-                </a>
-              ))}
-              {phones.map((p, i) => (
-                <a key={i} href={`tel:${p.number}`} style={linkStyle}>
-                  📞 {p.number}
-                </a>
-              ))}
-              {websites.map((w, i) => (
-                <a key={i} href={w.url} target="_blank" rel="noopener noreferrer" style={linkStyle}>
-                  🌐 {w.url}
-                </a>
-              ))}
-              {portfolio?.url && (
-                <a
-                  href={portfolio.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={linkStyle}
-                >
-                  💼 Portfolio
-                </a>
-              )}
-              {projects?.list &&
-                projects.list.map((p, i) => (
-                  <a
-                    key={i}
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={linkStyle}
-                  >
-                    📁 {p.title}
-                  </a>
+          {/* CAUSE / LINK MODALS */}
+          {(modalType === "cause" || modalType === "link") && (
+             <div style={{textAlign: "center"}}>
+                {modalType === "cause" && <p>This user supports:</p>}
+                {modalData && modalData.map((item, i) => (
+                    <a key={i} href={item.url} target="_blank" rel="noreferrer" style={styles.linkRow}>
+                        {item.title || item.url} ↗
+                    </a>
                 ))}
+                {!modalData?.length && <p>No links available.</p>}
+             </div>
+          )}
+
+          <button
+            onClick={() => setModalOpen(false)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#ef4444",
+              marginTop: "10px",
+              cursor: "pointer",
+              width: "100%"
+            }}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ------------------------------------
+  // VIEWS
+  // ------------------------------------
+  
+  // 1. LANDING PAGE
+  if (currentView === "landing") {
+    return (
+      <div style={styles.landingHero}>
+        <h1 style={{ fontSize: "64px", fontWeight: "900", marginBottom: "20px" }}>
+          LINKS & DM
+        </h1>
+        <p style={{ fontSize: "24px", maxWidth: "600px", lineHeight: "1.5" }}>
+          The Ultimate Link-in-Bio for Businesses & Creators. <br />
+          Sort DMs, Showcase Links, Build Your Brand.
+        </p>
+        <div style={{ marginTop: "40px", display: "flex", flexWrap: "wrap", justifyContent: "center" }}>
+          <button style={styles.btnPrimary} onClick={() => setCurrentView("auth")}>
+            Get Started
+          </button>
+          <button style={styles.btnSecondary} onClick={() => setCurrentView("demo-preview")}>
+            See Demo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. AUTH PAGE
+  if (currentView === "auth") {
+    return (
+      <div style={styles.container}>
+        <div style={{ paddingTop: "60px" }}>
+          <div style={styles.card}>
+            <h2 style={{ textAlign: "center", fontSize: "28px" }}>Welcome</h2>
+            <p style={{ textAlign: "center", color: "#6b7280" }}>Login or Sign Up below</p>
+            <input id="email" style={styles.input} placeholder="Email" />
+            <input id="password" type="password" style={styles.input} placeholder="Password" />
+            
+            <button
+              style={{ ...styles.dmButtonPublic, background: "#764ba2" }}
+              onClick={async () => {
+                const e = document.getElementById("email").value;
+                const p = document.getElementById("password").value;
+                try {
+                  await signInWithEmailAndPassword(auth, e, p);
+                  setCurrentView("editor");
+                } catch {
+                  try {
+                    await createUserWithEmailAndPassword(auth, e, p);
+                    setCurrentView("editor");
+                  } catch (err) {
+                    alert(err.message);
+                  }
+                }
+              }}
+            >
+              Continue
+            </button>
+
+            <button
+               onClick={handleForgotPassword}
+               style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", display: "block", margin: "10px auto" }}
+            >
+              Forgot Password?
+            </button>
+
+            <button
+              onClick={() => setCurrentView("landing")}
+              style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", display: "block", margin: "20px auto" }}
+            >
+              ← Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. DEMO PREVIEW (PERFECT PROFILE)
+  if (currentView === "demo-preview") {
+    return (
+      <div style={{ ...styles.container, background: "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)", padding: "40px 20px" }}>
+        {renderModal()}
+        <div style={styles.card}>
+            <div style={{ textAlign: "center" }}>
+                <img 
+                    src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80" 
+                    alt="Demo" 
+                    style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover", border: "4px solid white" }}
+                />
+                <h2 style={{ margin: "10px 0 5px" }}>Sarah Creator</h2>
+                <p style={{ color: "#555", fontStyle: "italic" }}>Digital Artist & Influencer</p>
+                <p>Welcome to my world! ✨ Connect with me properly using the buttons below.</p>
             </div>
 
-            <button
-              onClick={() => setCurrentView("landing")}
-              style={{
-                marginTop: "60px",
-                background: "transparent",
-                border: "none",
-                color: "#4f46e5",
-                cursor: "pointer",
-              }}
+            <div style={{ marginTop: "30px" }}>
+                {/* DM Sorter Buttons */}
+                <button 
+                    style={{ ...styles.dmButtonPublic, background: "linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)" }}
+                    onClick={() => { setModalType("meeting"); setModalOpen(true); }}
+                >
+                    📅 Book a Meeting
+                </button>
+                <button 
+                    style={{ ...styles.dmButtonPublic, background: "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)" }}
+                    onClick={() => { setModalType("collab"); setModalOpen(true); }}
+                >
+                    🤝 Collab Request
+                </button>
+                <button 
+                    style={{ ...styles.dmButtonPublic, background: "linear-gradient(90deg, #fa709a 0%, #fee140 100%)" }}
+                    onClick={() => { setModalType("connect"); setModalOpen(true); }}
+                >
+                    🌸 Let's Connect
+                </button>
+                
+                {/* Mock Link Buttons */}
+                <button style={{ ...styles.dmButtonPublic, background: "#fb7185" }} onClick={() => alert("Demo: Opens Charity Links")}>
+                     ❤️ Support a Cause
+                </button>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <button style={styles.linkRow} onClick={() => alert("Demo: Instagram/Twitter")}>📸 Handles</button>
+                    <button style={styles.linkRow} onClick={() => alert("Demo: Mailto")}>📧 Email</button>
+                    <button style={styles.linkRow} onClick={() => alert("Demo: Call")}>📞 Contact</button>
+                    <button style={styles.linkRow} onClick={() => alert("Demo: Website")}>🌐 Website</button>
+                </div>
+            </div>
+
+            <button 
+                onClick={() => setCurrentView("landing")} 
+                style={{ marginTop: "20px", width: "100%", padding: "10px", background: "transparent", border: "none", cursor: "pointer" }}
             >
-              ← Back to Landing
+                Exit Demo
             </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 4. EDITOR (PRIVATE)
+  if (currentView === "editor") {
+    return (
+      <div style={{ ...styles.container, background: "#f3f4f6", paddingBottom: "100px" }}>
+        <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+          
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h2>✏️ Editor</h2>
+            <div>
+                 <button onClick={() => setCurrentView("inbox")} style={{ marginRight: "10px", cursor: "pointer", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#6366f1", color: "white" }}>
+                    📥 Inbox
+                 </button>
+                 <button onClick={() => signOut(auth)} style={{ cursor: "pointer", padding: "8px 16px", borderRadius: "8px", border: "none", background: "#ef4444", color: "white" }}>
+                    Logout
+                 </button>
+            </div>
           </div>
-        );
 
-      // -----------------
-      // 5️⃣ Inbox View
-      // -----------------
-      case "inbox":
-        return (
-          <div
-            style={{
-              background: "#f3f4f6",
-              minHeight: "100vh",
-              padding: "20px",
-              fontFamily: "Poppins,sans-serif",
-            }}
-          >
-            <h2 style={{ textAlign: "center" }}>📥 Inbox</h2>
-            <button
-              onClick={async () => {
-                const q = query(
-                  collection(db, "users", user.uid, "messages")
-                );
-                const snap = await getDocs(q);
-                const arr = snap.docs
-                  .map((d) => ({ id: d.id, ...d.data() }))
-                  .sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds);
-                setInbox(arr);
-              }}
-              style={{
-                display: "block",
-                margin: "10px auto 20px",
-                background: "#6366f1",
-                color: "white",
-                border: "none",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
+          <div style={styles.card}>
+            <h3>Profile Info</h3>
+            <input style={styles.input} placeholder="Name" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} />
+            <input style={styles.input} placeholder="Profession" value={profile.profession} onChange={e => setProfile({...profile, profession: e.target.value})} />
+            <textarea style={styles.input} placeholder="Bio" value={profile.bio} onChange={e => setProfile({...profile, bio: e.target.value})} />
+            <input style={styles.input} placeholder="Username (no spaces)" value={profile.username} onChange={e => setProfile({...profile, username: e.target.value.replace(/\s/g, "")})} />
+            <input style={styles.input} placeholder="Profile Pic URL" value={profile.profilePic} onChange={e => setProfile({...profile, profilePic: e.target.value})} />
+            
+            <button 
+                onClick={saveProfile} 
+                disabled={isSaving}
+                style={{ width: "100%", padding: "12px", background: "#10b981", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}
             >
-              🔄 Refresh Inbox
+                {isSaving ? "Saving..." : "💾 Save Changes"}
             </button>
+            
+            {shareLink && (
+                <div style={{ marginTop: "15px", padding: "10px", background: "#ecfdf5", borderRadius: "8px", textAlign: "center", wordBreak: "break-all" }}>
+                    <small>Your Public Link:</small><br/>
+                    <a href={shareLink} target="_blank" rel="noreferrer" style={{ fontWeight: "bold", color: "#059669" }}>{shareLink}</a>
+                </div>
+            )}
+          </div>
 
-            {inbox?.length
-              ? inbox.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{
-                      background: "white",
-                      borderRadius: "12px",
-                      padding: "12px 16px",
-                      marginBottom: "10px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+          <div style={styles.card}>
+             <h3>⭐ Priority Contacts</h3>
+             <p style={{ fontSize: "12px", color: "#666" }}>Add emails of friends/family. Their messages will have a star.</p>
+             {priorityContacts.map((email, i) => (
+                 <div key={i} style={{ display: "flex", gap: "10px", marginBottom: "8px" }}>
+                     <input 
+                        style={{ ...styles.input, marginBottom: 0 }} 
+                        value={email} 
+                        onChange={e => {
+                            const newArr = [...priorityContacts];
+                            newArr[i] = e.target.value;
+                            setPriorityContacts(newArr);
+                        }}
+                     />
+                 </div>
+             ))}
+             <button onClick={() => setPriorityContacts([...priorityContacts, ""])} style={{ fontSize: "12px", cursor: "pointer", background: "none", border: "1px dashed #ccc", padding: "4px 8px", borderRadius: "4px" }}>+ Add Email</button>
+          </div>
+
+          <div style={styles.card}>
+            <h3>Smart DM Buttons</h3>
+            <div style={styles.smartBtn}><span>📅 Book a Meeting</span> <button style={styles.eyeBtn}>👁️</button></div>
+            <div style={styles.smartBtn}><span>🤝 Collab Request</span> <button style={styles.eyeBtn}>👁️</button></div>
+            <div style={styles.smartBtn}><span>🌸 Let's Connect</span> <button style={styles.eyeBtn}>👁️</button></div>
+          </div>
+
+          <div style={styles.card}>
+             <h3>Links & Contacts</h3>
+             {/* Simple list editors for brevity */}
+             <h4>Social Handles</h4>
+             {socialHandles.map((h, i) => (
+                 <div key={i} style={{ display: "flex", gap: "5px", marginBottom: "5px" }}>
+                     <input placeholder="Platform (e.g. Instagram)" style={styles.input} value={h.platform} onChange={e => {const n=[...socialHandles];n[i].platform=e.target.value;setSocialHandles(n)}} />
+                     <input placeholder="@username" style={styles.input} value={h.handle} onChange={e => {const n=[...socialHandles];n[i].handle=e.target.value;setSocialHandles(n)}} />
+                 </div>
+             ))}
+             <button onClick={() => setSocialHandles([...socialHandles, {platform:"", handle:""}])}>+ Add Handle</button>
+
+             <h4 style={{ marginTop: "20px" }}>Emails</h4>
+             {emails.map((item, i) => (
+                 <input key={i} style={styles.input} value={item.email} placeholder="Email Address" onChange={e => {const n=[...emails];n[i].email=e.target.value;setEmails(n)}} />
+             ))}
+             <button onClick={() => setEmails([...emails, {email:""}])}>+ Add Email</button>
+
+             <h4 style={{ marginTop: "20px" }}>Charity Links</h4>
+             {charityLinks.map((l, i) => (
+                 <div key={i} style={{ display: "flex", gap: "5px", marginBottom: "5px" }}>
+                    <input placeholder="Title" style={styles.input} value={l.title} onChange={e => {const n=[...charityLinks];n[i].title=e.target.value;setCharityLinks(n)}} />
+                    <input placeholder="URL" style={styles.input} value={l.url} onChange={e => {const n=[...charityLinks];n[i].url=e.target.value;setCharityLinks(n)}} />
+                 </div>
+             ))}
+             <button onClick={() => setCharityLinks([...charityLinks, {title:"", url:""}])}>+ Add Cause</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 5. PUBLIC PROFILE (LIVE)
+  if (currentView === "public-preview") {
+    return (
+      <div style={{ ...styles.container, background: "linear-gradient(180deg, #e0c3fc 0%, #8ec5fc 100%)", padding: "40px 20px" }}>
+        {renderModal()}
+        <div style={styles.card}>
+           <div style={{ textAlign: "center" }}>
+               <img 
+                   src={publicProfile.profilePic || "https://via.placeholder.com/150"} 
+                   alt="Profile" 
+                   style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover", border: "4px solid white" }}
+               />
+               <h2 style={{ margin: "10px 0 5px" }}>{publicProfile.name}</h2>
+               <p style={{ fontStyle: "italic", color: "#555" }}>{publicProfile.profession}</p>
+               <p>{publicProfile.bio}</p>
+           </div>
+
+           <div style={{ marginTop: "30px" }}>
+                {/* DM Buttons - Open Modals */}
+                <button style={{ ...styles.dmButtonPublic, background: "#6366f1" }} onClick={() => { setModalType("meeting"); setModalOpen(true); }}>📅 Book a Meeting</button>
+                <button style={{ ...styles.dmButtonPublic, background: "#10b981" }} onClick={() => { setModalType("collab"); setModalOpen(true); }}>🤝 Collab Request</button>
+                <button style={{ ...styles.dmButtonPublic, background: "#f472b6" }} onClick={() => { setModalType("connect"); setModalOpen(true); }}>🌸 Let's Connect</button>
+                
+                {/* Cause */}
+                {contactsPublic.charity?.length > 0 && (
+                    <button style={{ ...styles.dmButtonPublic, background: "#FB7185" }} onClick={() => { setModalType("cause"); setModalData(contactsPublic.charity); setModalOpen(true); }}>
+                        ❤️ Support a Cause
+                    </button>
+                )}
+           </div>
+
+           <div style={{ marginTop: "20px" }}>
+               {/* Real Links */}
+               {contactsPublic.social?.map((s, i) => (
+                   <a key={i} href={`https://${s.platform.toLowerCase()}.com/${s.handle.replace("@","")}`} target="_blank" rel="noreferrer" style={styles.linkRow}>
+                       @{s.handle} ({s.platform})
+                   </a>
+               ))}
+               {contactsPublic.emails?.map((e, i) => (
+                   <a key={i} href={`mailto:${e.email}`} style={styles.linkRow}>📧 {e.email}</a>
+               ))}
+               {contactsPublic.phones?.map((p, i) => (
+                   <a key={i} href={`tel:${p.number}`} style={styles.linkRow}>📞 {p.number}</a>
+               ))}
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 6. INBOX (PRIVATE)
+  if (currentView === "inbox") {
+    return (
+        <div style={{ ...styles.container, background: "#f3f4f6", padding: "20px" }}>
+            <div style={{ maxWidth: "600px", margin: "0 auto" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                    <h2>📥 Inbox</h2>
+                    <button onClick={() => setCurrentView("editor")} style={{ padding: "8px 16px", borderRadius: "8px", border: "none" }}>Back to Editor</button>
+                </div>
+                
+                <button 
+                    onClick={async () => {
+                        if (!user) return;
+                        const q = query(collection(db, "users", user.uid, "messages"));
+                        const snap = await getDocs(q);
+                        const msgs = snap.docs.map(d => ({id:d.id, ...d.data()})).sort((a,b) => b.timestamp?.seconds - a.timestamp?.seconds);
+                        setInbox(msgs);
                     }}
-                  >
-                    <div>
-                      <strong>{m.senderName}</strong>
-                      <p style={{ margin: "4px 0" }}>{m.message}</p>
-                      <small>{m.senderContact}</small>
+                    style={{ ...styles.dmButtonPublic, background: "#6366f1", marginBottom: "20px" }}
+                >
+                    🔄 Refresh Messages
+                </button>
+
+                {inbox.map(msg => (
+                    <div key={msg.id} style={{ background: "white", padding: "15px", borderRadius: "12px", marginBottom: "10px", boxShadow: "0 2px 4px rgba(0,0,0,0.05)", borderLeft: msg.isPriority ? "5px solid #fbbf24" : "5px solid #e5e7eb" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <strong>{msg.senderName}</strong>
+                            <span style={{ fontSize: "20px" }}>
+                                {msg.isPriority && "⭐ "} 
+                                {msg.type === "meeting" && "📅"}
+                                {msg.type === "collab" && "🤝"}
+                                {msg.type === "connect" && "🌸"}
+                            </span>
+                        </div>
+                        <p style={{ margin: "5px 0", color: "#374151" }}>{msg.message}</p>
+                        <small style={{ color: "#9ca3af" }}>From: {msg.senderContact}</small>
                     </div>
-                    <div style={{ fontSize: "18px" }}>
-                      {m.isPriority && "⭐"}
-                      {m.messageType === "meeting" && " 📅"}
-                      {m.messageType === "collab" && " 🤝"}
-                      {m.messageType === "connect" && " 🌸"}
-                    </div>
-                  </div>
-                ))
-              : "No messages yet."}
-          </div>
-        );
+                ))}
+                {inbox.length === 0 && <p style={{ textAlign: "center" }}>No messages loaded. Click refresh.</p>}
+            </div>
+        </div>
+    );
+  }
 
-      // -----------------
-      // 6️⃣ Not Found
-      // -----------------
-      case "not-found":
-        return (
-          <div
-            style={{
-              minHeight: "100vh",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "Poppins,sans-serif",
-            }}
-          >
-            <h2>404 — Profile Not Found</h2>
-            <button
-              onClick={() => setCurrentView("landing")}
-              style={{
-                marginTop: "20px",
-                background: "#6366f1",
-                color: "white",
-                border: "none",
-                padding: "10px 20px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-            >
-              Go Home
-            </button>
-          </div>
-        );
-
-      default:
-        return <div>Loading…</div>;
-    }
-  };
-
-  // 🔘 Shared Button Styles
-  const dmBtnStyle = {
-    display: "block",
-    width: "80%",
-    maxWidth: "300px",
-    margin: "10px auto",
-    padding: "12px 0",
-    borderRadius: "12px",
-    border: "none",
-    fontSize: "16px",
-    fontWeight: "600",
-    cursor: "pointer",
-    background: "linear-gradient(135deg,#a78bfa 0%,#6366f1 100%)",
-    color: "white",
-  };
-
-  const linkStyle = {
-    display: "block",
-    margin: "6px auto",
-    color: "#1f2937",
-    textDecoration: "none",
-    fontWeight: "600",
-  };
-
-  // ----------------------------------------------------
-  // 🧩 Render component view
-  // ----------------------------------------------------
-  return <>{renderView()}</>;
+  return <div>Loading...</div>;
 }
 
-// ----------------------------------------------------
-// 🌐 Wrapper Export with ErrorBoundary
-// ----------------------------------------------------
-export default function AppWrapper() {
-  return (
-    <ErrorBoundary>
-      <LinksAndDM />
-    </ErrorBoundary>
-  );
-}
+export default LinksAndDM;
